@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuietCareer — Setup</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0F0F12;
+      color: #E8E4DE;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .container { max-width: 640px; width: 100%; text-align: center; }
+    .shield {
+      width: 72px; height: 72px; margin: 0 auto 1.5rem;
+      border: 2px solid #C9A84C; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem;
+    }
+    h1 { font-size: 2rem; font-weight: 600; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
+    .subtitle { color: #9B9690; font-size: 1rem; margin-bottom: 2.5rem; }
+    .cards { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem; }
+    .card {
+      background: #161619;
+      border: 1px solid #2A2A32;
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: left;
+      transition: border-color 0.2s, transform 0.2s;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    .card:hover { border-color: #C9A84C; transform: translateY(-2px); }
+    .card-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+    .card-icon {
+      width: 40px; height: 40px; border-radius: 10px; background: #22222A;
+      display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+    .card-title { font-weight: 600; font-size: 1rem; }
+    .card-badge {
+      margin-left: auto; padding: 2px 10px; border-radius: 999px;
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .recommended { background: #C9A84C20; color: #C9A84C; }
+    .card-desc { color: #9B9690; font-size: 0.85rem; line-height: 1.5; }
+    .footer { color: #6B6660; font-size: 0.75rem; line-height: 1.6; }
+    .footer a { color: #C9A84C; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+    .divider { width: 100%; height: 1px; background: #2A2A32; margin: 1.5rem 0; }
+    .steps { text-align: left; color: #9B9690; font-size: 0.85rem; line-height: 2; }
+    .steps strong { color: #E8E4DE; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="shield">&#x1F6E1;</div>
+    <h1>Welcome to QuietCareer</h1>
+    <p class="subtitle">Your private career intelligence system. Choose how to set up:</p>
+
+    <div class="cards">
+      <!-- Vercel -->
+      <a class="card" href="https://vercel.com/new/clone?repository-url=https://github.com/lunarfile/quietcareer" target="_blank">
+        <div class="card-header">
+          <div class="card-icon">&#x25B2;</div>
+          <span class="card-title">Deploy to Vercel</span>
+          <span class="card-badge recommended">Recommended</span>
+        </div>
+        <p class="card-desc">
+          One click. Free account. Your app will be live in 60 seconds at <strong>yourname.vercel.app</strong>.
+          Access from any device — phone, tablet, desktop.
+        </p>
+      </a>
+
+      <!-- Netlify -->
+      <a class="card" href="https://app.netlify.com/start/deploy?repository=https://github.com/lunarfile/quietcareer" target="_blank">
+        <div class="card-header">
+          <div class="card-icon">&#x25C6;</div>
+          <span class="card-title">Deploy to Netlify</span>
+        </div>
+        <p class="card-desc">
+          Alternative cloud deploy. Free account. Same result — your own private URL.
+        </p>
+      </a>
+
+      <!-- Desktop -->
+      <div class="card" style="cursor: default;">
+        <div class="card-header">
+          <div class="card-icon">&#x1F4BB;</div>
+          <span class="card-title">Desktop App</span>
+        </div>
+        <p class="card-desc">
+          Run the included <strong>QuietCareer-Setup.exe</strong> (Windows) or <strong>QuietCareer.dmg</strong> (Mac)
+          for a native desktop experience. No internet needed after install.
+        </p>
+      </div>
+
+      <!-- Docker -->
+      <div class="card" style="cursor: default;">
+        <div class="card-header">
+          <div class="card-icon">&#x1F433;</div>
+          <span class="card-title">Run with Docker</span>
+        </div>
+        <p class="card-desc">
+          For tech-savvy users: <code style="background:#22222A;padding:2px 6px;border-radius:4px;font-size:0.8rem;">docker compose up</code>
+          then open <strong>localhost:7749</strong>. Runs 100% on your machine.
+        </p>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="steps">
+      <strong>After deploying, you'll need:</strong><br>
+      1. Pick an AI provider (OpenRouter, Gemini, Claude, OpenAI, or Groq)<br>
+      2. Get a free or paid API key from your chosen provider<br>
+      3. Enter the key in Settings — AI features light up instantly<br>
+      <br>
+      <strong>Gemini</strong> and <strong>Groq</strong> both offer free tiers — no credit card needed.
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="footer">
+      <p>All your data stays on your device. We never see it.</p>
+      <p>Questions? Email <a href="mailto:support@lunarfile.com">support@lunarfile.com</a></p>
+      <p style="margin-top: 0.5rem;">&copy; 2026 LunarFile. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>

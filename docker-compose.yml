@@ -1,0 +1,6 @@
+services:
+  quietcareer:
+    build: .
+    ports:
+      - "7749:7749"
+    restart: unless-stopped

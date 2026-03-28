@@ -1,0 +1,16 @@
+[package]
+name = "quietcareer"
+version = "1.0.0"
+description = "Private Career Intelligence System"
+authors = ["LunarFile"]
+license = ""
+repository = ""
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
