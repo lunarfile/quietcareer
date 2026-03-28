@@ -1,5 +1,6 @@
 'use client';
 import { usePageTitle } from '@/hooks/use-page-title';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -47,6 +48,7 @@ const FREQ_OPTIONS: { value: Frequency; label: string }[] = [
 
 export default function MeetingsPage() {
   const { toast } = useToast();
+  const { confirm } = useConfirm();
   usePageTitle('Prep');
   const [showForm, setShowForm] = useState(false);
   const [expandedMeeting, setExpandedMeeting] = useState<string | null>(null);
@@ -192,7 +194,8 @@ export default function MeetingsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this meeting?')) return;
+    const ok = await confirm({ title: 'Delete meeting?', description: 'This meeting and all its prep history will be removed.', confirmLabel: 'Delete', variant: 'danger' });
+    if (!ok) return;
     await db.meetings.delete(id);
     toast('Meeting removed.', 'success');
   };

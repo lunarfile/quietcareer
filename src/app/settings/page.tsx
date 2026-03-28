@@ -1,6 +1,7 @@
 'use client';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { DropZone } from '@/components/ui/drop-zone';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -41,6 +42,7 @@ type Tab = 'profile' | 'ai' | 'sync' | 'appearance' | 'data';
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const { confirm } = useConfirm();
   const { theme, toggleTheme } = useTheme();
   usePageTitle('Settings');
   const [tab, setTab] = useState<Tab>('profile');
@@ -178,7 +180,8 @@ export default function SettingsPage() {
   };
 
   const handleClearData = async () => {
-    if (!confirm('This will permanently delete all your data. Are you sure?')) return;
+    const ok = await confirm({ title: 'Delete all data?', description: 'This will permanently erase everything — field notes, energy history, goals, meetings, financial data. This cannot be undone.', confirmLabel: 'Delete Everything', variant: 'danger' });
+    if (!ok) return;
 
     const { db } = await import('@/lib/db');
     await Promise.all([
@@ -187,6 +190,8 @@ export default function SettingsPage() {
       db.financialData.clear(),
       db.goals.clear(),
       db.bragDocuments.clear(),
+      db.meetings.clear(),
+      db.weeklySnapshots.clear(),
       db.settings.clear(),
     ]);
     localStorage.clear();

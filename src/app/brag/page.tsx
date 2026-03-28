@@ -1,5 +1,6 @@
 'use client';
 import { usePageTitle } from '@/hooks/use-page-title';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -28,6 +29,7 @@ const TEMPLATES: { value: BragTemplate; label: string; description: string; emoj
 
 export default function BragPage() {
   const { toast } = useToast();
+  const { confirm } = useConfirm();
   usePageTitle('Proof');
   const [template, setTemplate] = useState<BragTemplate>('performance-review');
   const [dateRange, setDateRange] = useState(30);
@@ -402,7 +404,8 @@ export default function BragPage() {
                               variant="ghost"
                               size="sm"
                               onClick={async () => {
-                                if (!confirm('Delete this document?')) return;
+                                const ok = await confirm({ title: 'Delete document?', description: 'This proof document will be permanently removed.', confirmLabel: 'Delete', variant: 'danger' });
+                                if (!ok) return;
                                 await db.bragDocuments.delete(doc.id);
                                 toast('Document removed.', 'success');
                               }}

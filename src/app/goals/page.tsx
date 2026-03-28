@@ -1,5 +1,6 @@
 'use client';
 import { usePageTitle } from '@/hooks/use-page-title';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -45,6 +46,7 @@ const STATUS_COLORS: Record<GoalStatus, string> = {
 
 export default function GoalsPage() {
   const { toast } = useToast();
+  const { confirm } = useConfirm();
   usePageTitle('Next Moves');
   const [showForm, setShowForm] = useState(false);
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
@@ -106,7 +108,8 @@ export default function GoalsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this goal?')) return;
+    const ok = await confirm({ title: 'Delete goal?', description: 'This goal and its progress will be permanently removed.', confirmLabel: 'Delete', variant: 'danger' });
+    if (!ok) return;
     await db.goals.delete(id);
     toast('Goal deleted.', 'success');
   };

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { copy } from '@/lib/copy';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Highlight } from '@/components/ui/highlight';
 import { getAIApiKey, getAIProvider, getAIModel, getUserRole } from '@/lib/settings';
 import { AI_PROVIDERS, streamAIResponse, type AIProvider } from '@/lib/ai/providers';
@@ -42,6 +43,7 @@ const IMPACT_TYPES: { value: ImpactType; label: string; emoji: string }[] = [
 
 export default function JournalPage() {
   const { toast } = useToast();
+  const { confirm } = useConfirm();
   usePageTitle('Field Notes');
   const [content, setContent] = useState('');
   const [project, setProject] = useState('');
@@ -146,7 +148,8 @@ export default function JournalPage() {
   };
 
   const handleDelete = async (logId: string) => {
-    if (!confirm('Delete this entry? This cannot be undone.')) return;
+    const ok = await confirm({ title: 'Delete entry?', description: 'This cannot be undone. The entry will be permanently removed.', confirmLabel: 'Delete', variant: 'danger' });
+    if (!ok) return;
     await db.workLogs.delete(logId);
     toast('Entry removed.', 'success');
   };
