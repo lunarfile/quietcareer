@@ -2,6 +2,7 @@
 import { usePageTitle } from '@/hooks/use-page-title';
 import { DropZone } from '@/components/ui/drop-zone';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { PassphraseModal } from '@/components/ui/passphrase-modal';
 
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -46,6 +47,7 @@ export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
   usePageTitle('Settings');
   const [tab, setTab] = useState<Tab>('profile');
+  const [showPassphraseModal, setShowPassphraseModal] = useState(false);
 
   // Profile
   const [role, setRole] = useState('');
@@ -510,16 +512,7 @@ export default function SettingsPage() {
                     localStorage.removeItem('qc_passphrase_enabled');
                     toast('Passphrase protection disabled.', 'success');
                   } else {
-                    const pass = prompt('Choose a passphrase (you\u2019ll need this to unlock):');
-                    if (pass && pass.length >= 4) {
-                      import('@/lib/crypto').then(({ initializeEncryption }) => {
-                        initializeEncryption(pass);
-                        localStorage.setItem('qc_passphrase_enabled', 'true');
-                        toast('Passphrase protection enabled.', 'success');
-                      });
-                    } else if (pass) {
-                      toast('Passphrase must be at least 4 characters.', 'error');
-                    }
+                    setShowPassphraseModal(true);
                   }
                 }}
               >
@@ -585,6 +578,19 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      {/* Passphrase modal */}
+      <PassphraseModal
+        open={showPassphraseModal}
+        onClose={() => setShowPassphraseModal(false)}
+        onSubmit={async (pass) => {
+          const { initializeEncryption } = await import('@/lib/crypto');
+          await initializeEncryption(pass);
+          localStorage.setItem('qc_passphrase_enabled', 'true');
+          setShowPassphraseModal(false);
+          toast('Passphrase protection enabled. You\u2019ll need this to unlock next time.', 'success');
+        }}
+      />
 
       {/* Version footer */}
       <div className="mt-8 pt-4 border-t border-surface-border text-center">

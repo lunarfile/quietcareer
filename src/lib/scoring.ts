@@ -20,6 +20,7 @@ export interface TrafficLightScore {
   level: TrafficLight;
   trend: Trend;
   detail: string;
+  action: string; // what to do to improve
 }
 
 // === Impact Score ===
@@ -51,7 +52,8 @@ export function calculateImpactScore(
         ? `${uniqueDays} days logged — aim for 4+ per week`
         : 'Start logging daily to build your proof record';
 
-  return { label: 'Impact', score, level, trend, detail };
+  const action = level === 'green' ? '' : level === 'yellow' ? 'Log one more field note today' : 'Write what you did today \u2014 one sentence is enough';
+  return { label: 'Impact', score, level, trend, detail, action };
 }
 
 // === Visibility Score ===
@@ -83,7 +85,8 @@ export function calculateVisibilityScore(
         ? 'Generate a career asset or prep your next meeting'
         : 'Your work is invisible — create proof documents';
 
-  return { label: 'Visibility', score, level, trend, detail };
+  const action = level === 'green' ? '' : level === 'yellow' ? 'Generate a proof document or prep a meeting' : 'Create your first career asset from Field Notes';
+  return { label: 'Visibility', score, level, trend, detail, action };
 }
 
 // === Skills Diversity ===
@@ -113,7 +116,8 @@ export function calculateSkillsDiversity(
         ? `Only ${uniqueTags} skills — diversify your logged work`
         : 'Tag your entries with projects and skills';
 
-  return { label: 'Skills', score, level, trend, detail };
+  const action = level === 'green' ? '' : level === 'yellow' ? 'Tag your next entry with a project or skill' : 'Add tags to your field notes for better tracking';
+  return { label: 'Skills', score, level, trend, detail, action };
 }
 
 // === Runway Score ===
@@ -140,7 +144,8 @@ export function calculateRunwayScore(
           ? `${months.toFixed(1)} months — this needs attention`
           : 'Add your financial data to see your runway';
 
-  return { label: 'Runway', score, level, trend, detail };
+  const action = level === 'green' ? '' : level === 'yellow' ? 'Try cutting one expense or adding side income' : 'Update your financial numbers in Runway';
+  return { label: 'Runway', score, level, trend, detail, action };
 }
 
 // === Energy Trend ===
@@ -157,6 +162,7 @@ export function calculateEnergyTrend(
       level: 'red',
       trend: 'flat',
       detail: 'Start checking in to see your energy patterns',
+      action: 'Do a 10-second battery check-in',
     };
   }
 
@@ -181,7 +187,8 @@ export function calculateEnergyTrend(
         ? `${avg.toFixed(1)}/5 avg — watch for burnout signals`
         : `${avg.toFixed(1)}/5 avg — protect your energy right now`;
 
-  return { label: 'Energy', score, level, trend, detail };
+  const action = level === 'green' ? '' : level === 'yellow' ? 'Check in today \u2014 consistency reveals patterns' : 'Your energy is low. Consider what\u2019s draining you.';
+  return { label: 'Energy', score, level, trend, detail, action };
 }
 
 // === Risk Level ===

@@ -61,6 +61,9 @@ export function TrafficLightCard({ score, compact = false }: TrafficLightCardPro
         <span className="text-xs text-text-tertiary">/ 100</span>
       </div>
       <p className="text-xs text-text-tertiary leading-relaxed">{score.detail}</p>
+      {score.action && (
+        <p className="text-[10px] text-accent-text mt-1.5 font-medium">{'\u2192'} {score.action}</p>
+      )}
     </div>
   );
 }

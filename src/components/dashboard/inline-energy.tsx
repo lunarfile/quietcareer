@@ -28,6 +28,14 @@ export function InlineEnergy({ hasCheckedInToday }: InlineEnergyProps) {
 
   const handleQuickCheckin = async (level: EnergyLevel) => {
     setSaving(true);
+    // Prevent duplicate check-ins for today
+    const existing = await db.energyCheckins.where('date').equals(todayISO()).first();
+    if (existing) {
+      await db.energyCheckins.update(existing.id, { level, createdAt: now() });
+      setSaving(false);
+      toast(copy.energyToast(), 'success');
+      return;
+    }
     await db.energyCheckins.add({
       id: generateId(),
       date: todayISO(),

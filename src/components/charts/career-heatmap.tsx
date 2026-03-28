@@ -100,7 +100,7 @@ export function CareerHeatmap({
   };
 
   return (
-    <div className={cn('', className)}>
+    <div className={cn('overflow-x-auto', className)}>
       {/* Month labels */}
       <div className="flex mb-1" style={{ paddingLeft: showLabels ? 28 : 0 }}>
         {monthLabels.map((m, i) => (

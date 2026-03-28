@@ -178,6 +178,11 @@ export default function GoalsPage() {
               className="w-full rounded-[var(--radius-sm)] border border-surface-border bg-bg-input px-3 py-2 text-sm text-text-secondary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none"
             />
 
+            {/* Milestones (sub-tasks) */}
+            {goal.status === 'active' && (
+              <GoalMilestones goalId={goal.id} milestonesJson={goal.milestones} />
+            )}
+
             {/* Progress slider */}
             {goal.status === 'active' && (
               <div>
@@ -377,6 +382,89 @@ export default function GoalsPage() {
           }
         />
       )}
+    </div>
+  );
+}
+
+function GoalMilestones({ goalId, milestonesJson }: { goalId: string; milestonesJson: string }) {
+  const [newItem, setNewItem] = useState('');
+
+  let milestones: { text: string; done: boolean }[] = [];
+  try { milestones = JSON.parse(milestonesJson || '[]'); } catch { milestones = []; }
+
+  const save = async (updated: typeof milestones) => {
+    await db.goals.update(goalId, { milestones: JSON.stringify(updated), updatedAt: now() });
+  };
+
+  const toggle = (index: number) => {
+    const updated = [...milestones];
+    updated[index] = { ...updated[index], done: !updated[index].done };
+    save(updated);
+  };
+
+  const add = () => {
+    if (!newItem.trim()) return;
+    save([...milestones, { text: newItem.trim(), done: false }]);
+    setNewItem('');
+  };
+
+  const remove = (index: number) => {
+    save(milestones.filter((_, i) => i !== index));
+  };
+
+  const doneCount = milestones.filter((m) => m.done).length;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-xs text-text-tertiary">Milestones</label>
+        {milestones.length > 0 && (
+          <span className="text-[10px] text-text-tertiary">{doneCount}/{milestones.length}</span>
+        )}
+      </div>
+
+      {milestones.length > 0 && (
+        <div className="space-y-1 mb-2">
+          {milestones.map((m, i) => (
+            <div key={i} className="flex items-center gap-2 group">
+              <button
+                onClick={() => toggle(i)}
+                className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                  m.done
+                    ? 'bg-accent border-accent text-text-inverse'
+                    : 'border-surface-border hover:border-accent'
+                }`}
+                aria-label={m.done ? 'Uncheck' : 'Check'}
+              >
+                {m.done && <Check size={10} />}
+              </button>
+              <span className={`text-xs flex-1 ${m.done ? 'text-text-tertiary line-through' : 'text-text-secondary'}`}>
+                {m.text}
+              </span>
+              <button
+                onClick={() => remove(i)}
+                className="text-text-tertiary hover:text-danger-text text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+                aria-label="Remove milestone"
+              >
+                \u00D7
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <input
+          value={newItem}
+          onChange={(e) => setNewItem(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+          placeholder="Add a milestone..."
+          className="flex-1 h-7 px-2 rounded-[var(--radius-sm)] border border-surface-border bg-bg-input text-xs text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+        />
+        <Button size="sm" variant="ghost" onClick={add} disabled={!newItem.trim()}>
+          +
+        </Button>
+      </div>
     </div>
   );
 }
