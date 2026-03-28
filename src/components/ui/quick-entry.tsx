@@ -5,6 +5,7 @@ import { db, type ImpactType } from '@/lib/db';
 import { generateId, now, todayISO } from '@/lib/utils';
 import { useToast } from './toast';
 import { copy } from '@/lib/copy';
+import { encryptWorkLog } from '@/lib/field-encryption';
 import { Button } from './button';
 import { X, Sparkles } from 'lucide-react';
 
@@ -50,7 +51,7 @@ export function QuickEntry() {
     if (!content.trim()) return;
     setSaving(true);
 
-    await db.workLogs.add({
+    const entry = await encryptWorkLog({
       id: generateId(),
       date: todayISO(),
       content: content.trim(),
@@ -64,6 +65,7 @@ export function QuickEntry() {
       createdAt: now(),
       updatedAt: now(),
     });
+    await db.workLogs.add(entry);
 
     toast(copy.entryToast(), 'success');
     setContent('');

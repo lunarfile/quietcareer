@@ -1,6 +1,7 @@
 'use client';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { encryptBragDoc } from '@/lib/field-encryption';
 
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -106,7 +107,7 @@ export default function BragPage() {
         onDone: async (fullText) => {
           setGenerating(false);
 
-          await db.bragDocuments.add({
+          const doc = await encryptBragDoc({
             id: generateId(),
             title: `${TEMPLATES.find((t) => t.value === template)?.label} \u2014 ${format(new Date(), 'MMM yyyy')}`,
             dateRangeStart: cutoff,
@@ -119,6 +120,7 @@ export default function BragPage() {
             createdAt: now(),
             updatedAt: now(),
           });
+          await db.bragDocuments.add(doc);
 
           toast('Proof generated and saved.', 'success');
         },

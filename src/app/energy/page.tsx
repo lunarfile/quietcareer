@@ -18,6 +18,7 @@ import dynamic from 'next/dynamic';
 const EnergyChart = dynamic(() => import('@/components/charts/energy-chart').then((m) => m.EnergyChart), { ssr: false });
 import { suggestEnergyMode, getModeCopy } from '@/lib/scoring';
 import { copy } from '@/lib/copy';
+import { encryptCheckin } from '@/lib/field-encryption';
 import { format, parseISO, isToday } from 'date-fns';
 
 const ENERGY_LEVELS: {
@@ -55,7 +56,7 @@ export default function EnergyPage() {
     if (!selectedLevel) return;
     setSaving(true);
 
-    await db.energyCheckins.add({
+    const checkin = await encryptCheckin({
       id: generateId(),
       date: todayISO(),
       level: selectedLevel,
@@ -64,6 +65,7 @@ export default function EnergyPage() {
       tags: [],
       createdAt: now(),
     });
+    await db.energyCheckins.add(checkin);
 
     setSelectedLevel(null);
     setNotes('');

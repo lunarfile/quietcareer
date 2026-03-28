@@ -12,6 +12,7 @@ import { generateId, now, todayISO } from '@/lib/utils';
 import { streamAIResponse, type AIProvider } from '@/lib/ai/providers';
 import { rewriteAsImpact } from '@/lib/ai/prompts';
 import { getAIApiKey, getAIProvider, getAIModel } from '@/lib/settings';
+import { encryptWorkLog } from '@/lib/field-encryption';
 import { ArrowDown, Sparkles, ArrowRight, Check } from 'lucide-react';
 
 type Step = 'profile' | 'magic';
@@ -128,12 +129,12 @@ export default function OnboardingPage() {
   };
 
   const handleFinish = async () => {
-    await db.workLogs.add({
-      id: generateId(),
+    const entry = await encryptWorkLog({
+      id: generateId() as string,
       date: todayISO(),
       content: workEntry,
       tags: [],
-      impactType: 'other',
+      impactType: 'other' as const,
       project: '',
       aiRewrite: aiRewrite || null,
       mood: null,
@@ -142,6 +143,7 @@ export default function OnboardingPage() {
       createdAt: now(),
       updatedAt: now(),
     });
+    await db.workLogs.add(entry);
 
     await setSetting('onboarding_complete', 'true');
     router.push('/dashboard');

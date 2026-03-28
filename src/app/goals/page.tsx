@@ -1,6 +1,7 @@
 'use client';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { encryptGoal } from '@/lib/field-encryption';
 
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -69,12 +70,12 @@ export default function GoalsPage() {
   const handleCreate = async () => {
     if (!title.trim()) return;
 
-    await db.goals.add({
+    const goal = await encryptGoal({
       id: generateId(),
       title: title.trim(),
       category,
       targetDate: targetDate || null,
-      status: 'active',
+      status: 'active' as const,
       progress: 0,
       milestones: '[]',
       notes: notes.trim(),
@@ -82,6 +83,7 @@ export default function GoalsPage() {
       createdAt: now(),
       updatedAt: now(),
     });
+    await db.goals.add(goal);
 
     setTitle('');
     setCategory('skill');
