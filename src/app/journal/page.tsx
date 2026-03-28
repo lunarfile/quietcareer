@@ -1,7 +1,7 @@
 'use client';
 import { usePageTitle } from '@/hooks/use-page-title';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type ImpactType } from '@/lib/db';
 import { generateId, now, todayISO, relativeTime } from '@/lib/utils';
@@ -24,6 +24,7 @@ import {
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { copy } from '@/lib/copy';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { encryptWorkLog, decryptWorkLogs } from '@/lib/field-encryption';
 import { Highlight } from '@/components/ui/highlight';
 import { getAIApiKey, getAIProvider, getAIModel, getUserRole } from '@/lib/settings';
 import { AI_PROVIDERS, streamAIResponse, type AIProvider } from '@/lib/ai/providers';
@@ -55,9 +56,16 @@ export default function JournalPage() {
   const [showForm, setShowForm] = useState(true);
   const [rewritingId, setRewritingId] = useState<string | null>(null);
 
-  const recentLogs = useLiveQuery(
+  const rawLogs = useLiveQuery(
     () => db.workLogs.orderBy('createdAt').reverse().limit(30).toArray()
   );
+  const [recentLogs, setRecentLogs] = useState(rawLogs);
+
+  // Decrypt logs when they change
+  useEffect(() => {
+    if (!rawLogs) return;
+    decryptWorkLogs(rawLogs).then(setRecentLogs);
+  }, [rawLogs]);
 
   const totalCount = useLiveQuery(() => db.workLogs.count());
 
@@ -70,7 +78,7 @@ export default function JournalPage() {
       .map((t) => t.trim())
       .filter(Boolean);
 
-    await db.workLogs.add({
+    const entry = await encryptWorkLog({
       id: generateId(),
       date: todayISO(),
       content: content.trim(),
@@ -84,6 +92,7 @@ export default function JournalPage() {
       createdAt: now(),
       updatedAt: now(),
     });
+    await db.workLogs.add(entry);
 
     setContent('');
     setProject('');

@@ -1,9 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, Lock } from 'lucide-react';
+import { Shield, Lock, Fingerprint } from 'lucide-react';
 import { Button } from './button';
 import { initializeEncryption, isEncryptionReady } from '@/lib/crypto';
+import {
+  isBiometricAvailable,
+  isBiometricSupported,
+  hasBiometricCredential,
+  authenticateBiometric,
+} from '@/lib/webauthn';
 
 interface SessionLockProps {
   children: React.ReactNode;
@@ -14,14 +20,41 @@ export function SessionLock({ children }: SessionLockProps) {
   const [passphrase, setPassphrase] = useState('');
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(true);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricAttempting, setBiometricAttempting] = useState(false);
 
   useEffect(() => {
-    // Check if passphrase is enabled
-    const hasPassphrase = localStorage.getItem('qc_passphrase_enabled');
-    if (hasPassphrase === 'true' && !isEncryptionReady()) {
-      setLocked(true);
-    }
-    setChecking(false);
+    const check = async () => {
+      const hasPassphrase = localStorage.getItem('qc_passphrase_enabled') === 'true';
+      if (hasPassphrase && !isEncryptionReady()) {
+        setLocked(true);
+
+        // Check biometric availability
+        if (hasBiometricCredential()) {
+          const supported = await isBiometricSupported();
+          setBiometricAvailable(supported);
+
+          // Auto-prompt biometric on load
+          if (supported) {
+            setBiometricAttempting(true);
+            const success = await authenticateBiometric();
+            setBiometricAttempting(false);
+            if (success) {
+              // Retrieve stored passphrase and initialize encryption
+              const storedPass = localStorage.getItem('qc_biometric_pass');
+              if (storedPass) {
+                await initializeEncryption(storedPass);
+                setLocked(false);
+                setChecking(false);
+                return;
+              }
+            }
+          }
+        }
+      }
+      setChecking(false);
+    };
+    check();
   }, []);
 
   const handleUnlock = async () => {
@@ -31,6 +64,25 @@ export function SessionLock({ children }: SessionLockProps) {
       setError('');
     } catch {
       setError('Failed to unlock. Try again.');
+    }
+  };
+
+  const handleBiometric = async () => {
+    setBiometricAttempting(true);
+    setError('');
+    const success = await authenticateBiometric();
+    setBiometricAttempting(false);
+
+    if (success) {
+      const storedPass = localStorage.getItem('qc_biometric_pass');
+      if (storedPass) {
+        await initializeEncryption(storedPass);
+        setLocked(false);
+      } else {
+        setError('Biometric verified but passphrase not linked. Enter passphrase manually.');
+      }
+    } else {
+      setError('Biometric verification failed. Try again or use passphrase.');
     }
   };
 
@@ -63,16 +115,40 @@ export function SessionLock({ children }: SessionLockProps) {
           Session Locked
         </h2>
         <p className="text-sm text-text-secondary mb-8">
-          Enter your passphrase to access your career data.
+          {biometricAvailable
+            ? 'Use biometrics or enter your passphrase.'
+            : 'Enter your passphrase to access your career data.'}
         </p>
 
+        {/* Biometric button */}
+        {biometricAvailable && (
+          <Button
+            size="lg"
+            onClick={handleBiometric}
+            disabled={biometricAttempting}
+            className="w-full mb-4"
+          >
+            <Fingerprint size={18} />
+            {biometricAttempting ? 'Verifying...' : 'Unlock with Biometrics'}
+          </Button>
+        )}
+
+        {biometricAvailable && (
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1 h-px bg-surface-border" />
+            <span className="text-xs text-text-tertiary">or passphrase</span>
+            <div className="flex-1 h-px bg-surface-border" />
+          </div>
+        )}
+
+        {/* Passphrase input */}
         <input
           type="password"
           value={passphrase}
           onChange={(e) => { setPassphrase(e.target.value); setError(''); }}
           onKeyDown={handleKeyDown}
           placeholder="Your passphrase"
-          autoFocus
+          autoFocus={!biometricAvailable}
           className="w-full h-12 px-4 rounded-[var(--radius-md)] border border-surface-border bg-bg-input text-sm text-text-primary text-center placeholder:text-text-tertiary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         />
 

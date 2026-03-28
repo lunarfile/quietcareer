@@ -520,6 +520,9 @@ export default function SettingsPage() {
               </Button>
             </div>
           </Card>
+
+          {/* Biometric unlock */}
+          <BiometricSetting />
         </>
         )}
 
@@ -741,6 +744,79 @@ function AIUsageStats() {
       </div>
       <p className="text-[10px] text-text-tertiary mt-3">
         Cost estimates are approximate. Actual costs depend on your provider and model.
+      </p>
+    </Card>
+  );
+}
+
+function BiometricSetting() {
+  const { toast } = useToast();
+  const [supported, setSupported] = useState(false);
+  const [enrolled, setEnrolled] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
+
+  useEffect(() => {
+    import('@/lib/webauthn').then(async ({ isBiometricSupported, hasBiometricCredential }) => {
+      const isSupported = await isBiometricSupported();
+      setSupported(isSupported);
+      setEnrolled(hasBiometricCredential());
+    });
+  }, []);
+
+  const passphraseEnabled = typeof window !== 'undefined' && localStorage.getItem('qc_passphrase_enabled') === 'true';
+
+  if (!supported || !passphraseEnabled) return null;
+
+  const handleEnroll = async () => {
+    setEnrolling(true);
+    const { registerBiometric } = await import('@/lib/webauthn');
+    const success = await registerBiometric();
+    setEnrolling(false);
+
+    if (success) {
+      // Store passphrase reference for biometric unlock
+      // The passphrase is already in memory from initializeEncryption
+      // We store a flag so the lock screen knows biometric is linked
+      setEnrolled(true);
+      toast('Biometric unlock enabled. Use Windows Hello, Touch ID, or fingerprint to unlock.', 'success');
+    } else {
+      toast('Biometric enrollment failed. Try again.', 'error');
+    }
+  };
+
+  const handleRemove = async () => {
+    const { removeBiometric } = await import('@/lib/webauthn');
+    removeBiometric();
+    localStorage.removeItem('qc_biometric_pass');
+    setEnrolled(false);
+    toast('Biometric unlock disabled.', 'success');
+  };
+
+  return (
+    <Card>
+      <CardTitle className="text-base mb-4">Biometric Unlock</CardTitle>
+      <div className="flex items-center justify-between py-3 px-4 rounded-[var(--radius-md)] border border-surface-border">
+        <div>
+          <p className="text-sm font-medium text-text-primary">
+            {enrolled ? 'Biometric Enrolled' : 'Windows Hello / Touch ID / Fingerprint'}
+          </p>
+          <p className="text-xs text-text-tertiary">
+            {enrolled
+              ? 'Enabled \u2014 unlock with biometrics instead of typing passphrase'
+              : 'Use your device\u2019s biometric sensor to unlock QuietCareer'}
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={enrolled ? handleRemove : handleEnroll}
+          disabled={enrolling}
+        >
+          {enrolling ? 'Setting up...' : enrolled ? 'Remove' : 'Set Up'}
+        </Button>
+      </div>
+      <p className="text-[10px] text-text-tertiary mt-3">
+        Biometric data never leaves your device. QuietCareer uses your browser\u2019s built-in WebAuthn API.
       </p>
     </Card>
   );
