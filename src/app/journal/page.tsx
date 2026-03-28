@@ -318,6 +318,35 @@ export default function JournalPage() {
               )}
             </div>
 
+            {/* Lunch (passive spend tracking — optional) */}
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-text-tertiary">Lunch:</span>
+              {(['brought', 'bought', 'skipped'] as const).map((choice) => (
+                <button
+                  key={choice}
+                  onClick={() => {
+                    const current = localStorage.getItem('qc_lunch_today');
+                    if (current === choice) {
+                      localStorage.removeItem('qc_lunch_today');
+                    } else {
+                      localStorage.setItem('qc_lunch_today', choice);
+                      // Track for insights
+                      const history = JSON.parse(localStorage.getItem('qc_lunch_history') ?? '[]');
+                      history.push({ date: todayISO(), choice });
+                      localStorage.setItem('qc_lunch_history', JSON.stringify(history.slice(-90)));
+                    }
+                  }}
+                  className={`px-2.5 py-1 text-xs rounded-full border transition-all ${
+                    localStorage.getItem('qc_lunch_today') === choice
+                      ? 'border-accent bg-accent-muted text-accent-text'
+                      : 'border-surface-border text-text-tertiary hover:border-surface-border-hover'
+                  }`}
+                >
+                  {choice === 'brought' ? '\u{1F371} Brought' : choice === 'bought' ? '\u{1F4B5} Bought' : '\u{23ED}\u{FE0F} Skipped'}
+                </button>
+              ))}
+            </div>
+
             <div className="flex items-center justify-between pt-2">
               <Button
                 onClick={handleSubmit}

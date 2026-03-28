@@ -16,7 +16,8 @@ export function FloatingActionButton() {
   return (
     <Link
       href="/journal"
-      className="md:hidden fixed bottom-20 right-4 z-30 w-14 h-14 rounded-full bg-accent text-text-inverse shadow-lg shadow-accent/30 flex items-center justify-center active:scale-90 transition-transform"
+      className="md:hidden fixed right-4 z-30 w-14 h-14 rounded-full bg-accent text-text-inverse shadow-lg shadow-accent/30 flex items-center justify-center active:scale-90 transition-transform"
+      style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 16px))' }}
       aria-label="New field note"
     >
       <Plus size={24} strokeWidth={2.5} />

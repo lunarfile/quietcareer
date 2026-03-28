@@ -18,6 +18,8 @@ import dynamic from 'next/dynamic';
 const EnergyChart = dynamic(() => import('@/components/charts/energy-chart').then((m) => m.EnergyChart), { ssr: false });
 import { suggestEnergyMode, getModeCopy } from '@/lib/scoring';
 import { copy } from '@/lib/copy';
+import { MicroRecoveryCard } from '@/components/dashboard/micro-recovery';
+import { detectEnergyPatterns } from '@/lib/wellness-intelligence';
 import { encryptCheckin } from '@/lib/field-encryption';
 import { format, parseISO, isToday } from 'date-fns';
 
@@ -116,6 +118,9 @@ export default function EnergyPage() {
               </div>
             </div>
           </Card>
+
+          {/* Micro-recovery (only when energy is low) */}
+          <MicroRecoveryCard energyLevel={todayCheckin.level} />
 
           {/* Adaptive Mode Suggestion */}
           {(() => {
@@ -252,60 +257,29 @@ export default function EnergyPage() {
         </Card>
       )}
 
-      {/* Energy-Work Correlation Insight */}
-      {recentCheckins && recentCheckins.length >= 5 && (
-        <Card>
-          <CardTitle className="text-base mb-3">Pattern Insight</CardTitle>
-          <CardContent>
-            {(() => {
-              const highDays = recentCheckins.filter((c) => c.level >= 4).map((c) => c.date);
-              const lowDays = recentCheckins.filter((c) => c.level <= 2).map((c) => c.date);
-
-              if (highDays.length === 0 && lowDays.length === 0) {
-                return <p className="text-sm text-text-tertiary">Keep logging to reveal patterns.</p>;
-              }
-
-              const avgLevel = recentCheckins.reduce((s, c) => s + c.level, 0) / recentCheckins.length;
-              const dayOfWeekAvg: Record<number, { total: number; count: number }> = {};
-              recentCheckins.forEach((c) => {
-                const dow = new Date(c.date).getDay();
-                if (!dayOfWeekAvg[dow]) dayOfWeekAvg[dow] = { total: 0, count: 0 };
-                dayOfWeekAvg[dow].total += c.level;
-                dayOfWeekAvg[dow].count++;
-              });
-
-              const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-              const sorted = Object.entries(dayOfWeekAvg)
-                .map(([dow, data]) => ({ dow: parseInt(dow), avg: data.total / data.count }))
-                .sort((a, b) => b.avg - a.avg);
-
-              const bestDay = sorted[0];
-              const worstDay = sorted[sorted.length - 1];
-
-              return (
-                <div className="space-y-2 text-sm text-text-secondary">
-                  {bestDay && worstDay && bestDay.dow !== worstDay.dow && (
-                    <p>
-                      Your best day is typically <strong className="text-text-primary">{dayNames[bestDay.dow]}</strong> (avg {bestDay.avg.toFixed(1)}/5).
-                      Your hardest is <strong className="text-text-primary">{dayNames[worstDay.dow]}</strong> (avg {worstDay.avg.toFixed(1)}/5).
-                    </p>
-                  )}
-                  {avgLevel < 2.5 && (
-                    <p className="text-warning-text">
-                      Your average energy has been below 2.5 for a while. That\u2019s a burnout signal worth taking seriously.
-                    </p>
-                  )}
-                  {highDays.length > lowDays.length * 2 && (
-                    <p className="text-success-text">
-                      More good days than bad recently. Whatever you\u2019re doing, keep it up.
-                    </p>
-                  )}
-                </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      )}
+      {/* Intelligent Pattern Detection */}
+      {(() => {
+        if (!recentCheckins || recentCheckins.length < 7) return null;
+        const patterns = detectEnergyPatterns(
+          recentCheckins.map((c) => ({ date: c.date, level: c.level })),
+          [] // logs would come from a query — keeping it simple for now
+        );
+        if (patterns.length === 0) return null;
+        return (
+          <Card>
+            <CardTitle className="text-base mb-3">What Your Data Shows</CardTitle>
+            <CardContent>
+              <div className="space-y-2">
+                {patterns.map((p, i) => (
+                  <p key={i} className={`text-sm leading-relaxed ${p.severity === 'warning' ? 'text-warning-text' : 'text-text-secondary'}`}>
+                    {p.message}
+                  </p>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* History */}
       {recentCheckins && recentCheckins.length > 0 && (
