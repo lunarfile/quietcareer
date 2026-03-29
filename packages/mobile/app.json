@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "QuietCareer",
+    "slug": "quietcareer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "quietcareer",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F0F12"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lunarfile.quietcareer"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F0F12"
+      },
+      "package": "com.lunarfile.quietcareer"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sharing",
+      "expo-secure-store",
+      "expo-local-authentication"
+    ]
+  }
+}

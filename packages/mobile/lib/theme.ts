@@ -1,0 +1,91 @@
+/**
+ * QuietCareer native theme — matches the web design tokens.
+ */
+
+export const colors = {
+  dark: {
+    bgPrimary: '#0F0F12',
+    bgSecondary: '#161619',
+    bgTertiary: '#1C1C21',
+    bgInput: '#1A1A1F',
+    surfaceBorder: '#2A2A32',
+    surfaceBorderHover: '#3A3A44',
+    surfaceHighlight: '#22222A',
+    textPrimary: '#E8E4DE',
+    textSecondary: '#9B9690',
+    textTertiary: '#6B6660',
+    textInverse: '#0F0F12',
+    accent: '#C9A84C',
+    accentHover: '#D4B65E',
+    accentMuted: 'rgba(201,168,76,0.1)',
+    accentText: '#E8D48B',
+    accentSecondary: '#7C8B9E',
+    success: '#4A9E6B',
+    successText: '#6BC48D',
+    warning: '#C4923A',
+    warningText: '#E0AA4F',
+    danger: '#C45B5B',
+    dangerText: '#E07070',
+    energy1: '#C45B5B',
+    energy2: '#C4923A',
+    energy3: '#9B9690',
+    energy4: '#7C8B9E',
+    energy5: '#4A9E6B',
+  },
+  light: {
+    bgPrimary: '#FAFAF8',
+    bgSecondary: '#FFFFFF',
+    bgTertiary: '#F5F5F0',
+    bgInput: '#FFFFFF',
+    surfaceBorder: '#E5E2DC',
+    surfaceBorderHover: '#D5D0C8',
+    surfaceHighlight: '#F0EDE6',
+    textPrimary: '#1A1A1A',
+    textSecondary: '#6B6660',
+    textTertiary: '#8A857F',
+    textInverse: '#FFFFFF',
+    accent: '#B8942F',
+    accentHover: '#A6851F',
+    accentMuted: 'rgba(184,148,47,0.08)',
+    accentText: '#7A6420',
+    accentSecondary: '#5A6B80',
+    success: '#3A8E5B',
+    successText: '#2D7A4A',
+    warning: '#B4822A',
+    warningText: '#9A6E1F',
+    danger: '#B44B4B',
+    dangerText: '#A03A3A',
+    energy1: '#A03A3A',
+    energy2: '#9A6E1F',
+    energy3: '#7A7570',
+    energy4: '#4A6080',
+    energy5: '#2D7A4A',
+  },
+};
+
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+};
+
+export const radius = {
+  sm: 6,
+  md: 8,
+  lg: 12,
+  full: 9999,
+};
+
+export const typography = {
+  display: { fontSize: 36, fontWeight: '600' as const, lineHeight: 43 },
+  h1: { fontSize: 24, fontWeight: '600' as const, lineHeight: 30 },
+  h2: { fontSize: 20, fontWeight: '600' as const, lineHeight: 26 },
+  h3: { fontSize: 16, fontWeight: '600' as const, lineHeight: 22 },
+  body: { fontSize: 16, fontWeight: '400' as const, lineHeight: 24 },
+  bodySm: { fontSize: 14, fontWeight: '400' as const, lineHeight: 20 },
+  caption: { fontSize: 12, fontWeight: '500' as const, lineHeight: 16 },
+  overline: { fontSize: 11, fontWeight: '600' as const, lineHeight: 14, letterSpacing: 0.8 },
+};

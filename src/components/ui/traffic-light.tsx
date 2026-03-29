@@ -1,12 +1,14 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ChevronRight } from 'lucide-react';
 import type { TrafficLightScore } from '@/lib/scoring';
 
 interface TrafficLightCardProps {
   score: TrafficLightScore;
   compact?: boolean;
+  href?: string;
+  onClick?: () => void;
 }
 
 const lightColors = {
@@ -27,7 +29,7 @@ const trendColors = {
   flat: 'text-text-tertiary',
 };
 
-export function TrafficLightCard({ score, compact = false }: TrafficLightCardProps) {
+export function TrafficLightCard({ score, compact = false, href, onClick }: TrafficLightCardProps) {
   const colors = lightColors[score.level];
   const TrendIcon = trendIcons[score.trend];
 
@@ -42,7 +44,14 @@ export function TrafficLightCard({ score, compact = false }: TrafficLightCardPro
   }
 
   return (
-    <div className="group rounded-[var(--radius-md)] border border-surface-border bg-bg-secondary p-4 hover:border-surface-border-hover hover:-translate-y-px transition-all duration-200">
+    <div
+      className={cn(
+        'group rounded-[var(--radius-md)] border border-surface-border bg-bg-secondary p-4 hover:border-surface-border-hover hover:-translate-y-px transition-all duration-200',
+        (href || onClick) && 'cursor-pointer active:scale-[0.98]'
+      )}
+      onClick={onClick}
+      role={href || onClick ? 'button' : undefined}
+      tabIndex={href || onClick ? 0 : undefined}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className={cn('w-3 h-3 rounded-full', colors.dot, 'ring-3', colors.ring)} />
@@ -50,8 +59,9 @@ export function TrafficLightCard({ score, compact = false }: TrafficLightCardPro
             {score.label}
           </span>
         </div>
-        <div className={cn('flex items-center gap-1', trendColors[score.trend])}>
-          <TrendIcon size={12} />
+        <div className="flex items-center gap-1">
+          <TrendIcon size={12} className={trendColors[score.trend]} />
+          {(href || onClick) && <ChevronRight size={12} className="text-text-tertiary opacity-0 group-hover:opacity-100 transition-opacity" />}
         </div>
       </div>
       <div className="flex items-baseline gap-1.5 mb-1.5">

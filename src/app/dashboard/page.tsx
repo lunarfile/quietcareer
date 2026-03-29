@@ -216,11 +216,24 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Traffic Light Metrics */}
+      {/* Traffic Light Metrics — clickable, drill into detail */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 stagger-children">
-        {scores.map((score) => (
-          <TrafficLightCard key={score.label} score={score} />
-        ))}
+        {scores.map((score) => {
+          const routes: Record<string, string> = {
+            Impact: '/journal',
+            Visibility: '/brag',
+            Skills: '/journal',
+            Runway: '/escape',
+            Energy: '/energy',
+          };
+          return (
+            <TrafficLightCard
+              key={score.label}
+              score={score}
+              onClick={() => window.location.href = routes[score.label] ?? '/dashboard'}
+            />
+          );
+        })}
       </div>
 
       {/* Energy Mode + Streak row */}
