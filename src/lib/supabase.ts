@@ -114,6 +114,20 @@ export async function signInWithEmail(email: string, password: string): Promise<
   return { user: data.user, error: null };
 }
 
+export async function resetPassword(email: string): Promise<{ error: string | null }> {
+  const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://quietcareer.vercel.app/reset-password',
+  });
+  return { error: error?.message ?? null };
+}
+
+export async function updatePassword(newPassword: string): Promise<{ error: string | null }> {
+  const { error } = await getSupabase().auth.updateUser({
+    password: newPassword,
+  });
+  return { error: error?.message ?? null };
+}
+
 export async function signOut(): Promise<void> {
   await getSupabase().auth.signOut();
 }
