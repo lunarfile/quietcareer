@@ -209,6 +209,15 @@ body {
   animation: slide-in-left 0.4s ease-out both;
 }
 
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.animate-sheet-up {
+  animation: sheet-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .animate-pulse-gentle {
   animation: pulse-gentle 2s ease-in-out infinite;
 }

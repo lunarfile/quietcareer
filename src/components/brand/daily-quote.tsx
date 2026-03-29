@@ -53,11 +53,11 @@ export function DailyQuote({ onComplete }: DailyQuoteProps) {
     // Fade in
     const showTimer = setTimeout(() => setVisible(true), 100);
 
-    // Start fade out after 2.5 seconds
-    const fadeTimer = setTimeout(() => setFading(true), 2800);
+    // Start fade out after 4.2 seconds
+    const fadeTimer = setTimeout(() => setFading(true), 4200);
 
-    // Complete after fade out
-    const completeTimer = setTimeout(() => onComplete(), 3600);
+    // Complete after fade out (5 seconds total)
+    const completeTimer = setTimeout(() => onComplete(), 5000);
 
     return () => {
       clearTimeout(showTimer);

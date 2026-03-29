@@ -7,7 +7,7 @@ import { MobileNav } from './mobile-nav';
 import { ToastProvider } from '@/components/ui/toast';
 import { PageTransition } from '@/components/ui/page-transition';
 import { DailyQuote } from '@/components/brand/daily-quote';
-import { FabMenu } from '@/components/ui/fab-menu';
+// FabMenu removed — center compose button now in MobileNav
 import { OfflineIndicator } from '@/components/ui/offline-indicator';
 import { ConfirmProvider } from '@/components/ui/confirm-dialog';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -15,6 +15,7 @@ import { CommandPalette } from '@/components/ui/command-palette';
 import { QuickEntry } from '@/components/ui/quick-entry';
 import { GlobalSearch } from '@/components/ui/global-search';
 import { SessionLock } from '@/components/ui/session-lock';
+import { ReminderBanner } from '@/components/ui/reminder-banner';
 
 const ONBOARDING_ROUTES = ['/', '/onboarding'];
 
@@ -60,19 +61,20 @@ export function AppShell({ children }: { children: ReactNode }) {
     <SessionLock>
       {showQuote && <DailyQuote onComplete={handleQuoteComplete} />}
       <OfflineIndicator />
+      <ReminderBanner />
       <CommandPalette />
       <QuickEntry />
       <GlobalSearch />
       <div className="flex min-h-screen">
         <Sidebar />
-        <main id="main-content" className="flex-1 pb-24 md:pb-0 overflow-x-hidden">
+        <main id="main-content" className="flex-1 pb-32 md:pb-0 overflow-x-hidden">
           <div className="mx-auto max-w-[960px] px-4 pt-12 pb-6 md:px-8 md:pt-8 md:pb-8">
             <ErrorBoundary>
               <PageTransition>{children}</PageTransition>
             </ErrorBoundary>
           </div>
         </main>
-        <FabMenu />
+        {/* Center compose FAB is now part of MobileNav */}
         <MobileNav />
       </div>
     </SessionLock>

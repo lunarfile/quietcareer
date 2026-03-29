@@ -80,19 +80,24 @@ export function TrafficLightCard({ score, compact = false, href, onClick }: Traf
 
 interface RiskBadgeProps {
   level: 'LOW' | 'MODERATE' | 'HIGH';
+  isNewUser?: boolean;
   className?: string;
 }
 
-export function RiskBadge({ level, className }: RiskBadgeProps) {
+export function RiskBadge({ level, isNewUser, className }: RiskBadgeProps) {
+  // Don't show scary "High Risk" to new users with no data
+  const effectiveLevel = isNewUser && level === 'HIGH' ? 'BUILDING' : level;
+
   const config = {
+    BUILDING: { bg: 'bg-accent/10', border: 'border-accent/30', text: 'text-accent-text', label: 'Getting Started' },
     LOW: { bg: 'bg-success/10', border: 'border-success/30', text: 'text-success-text', label: 'Low Risk' },
     MODERATE: { bg: 'bg-warning/10', border: 'border-warning/30', text: 'text-warning-text', label: 'Moderate Risk' },
     HIGH: { bg: 'bg-danger/10', border: 'border-danger/30', text: 'text-danger-text', label: 'High Risk' },
-  }[level];
+  }[effectiveLevel];
 
   return (
     <div className={cn('inline-flex items-center gap-2 px-4 py-2 rounded-full border', config.bg, config.border, className)}>
-      <div className={cn('w-2 h-2 rounded-full', level === 'LOW' ? 'bg-success' : level === 'MODERATE' ? 'bg-warning' : 'bg-danger')} />
+      <div className={cn('w-2 h-2 rounded-full', effectiveLevel === 'BUILDING' ? 'bg-accent' : effectiveLevel === 'LOW' ? 'bg-success' : effectiveLevel === 'MODERATE' ? 'bg-warning' : 'bg-danger')} />
       <span className={cn('text-sm font-semibold', config.text)}>{config.label}</span>
     </div>
   );

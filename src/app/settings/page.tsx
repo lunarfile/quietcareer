@@ -491,6 +491,9 @@ export default function SettingsPage() {
             </div>
           </Card>
 
+          {/* Reminders */}
+          <ReminderSettings />
+
           {/* Session Lock */}
           <Card>
             <CardTitle className="text-base mb-4">Session Lock</CardTitle>
@@ -818,6 +821,89 @@ function BiometricSetting() {
       <p className="text-[10px] text-text-tertiary mt-3">
         Biometric data never leaves your device. QuietCareer uses your browser\u2019s built-in WebAuthn API.
       </p>
+    </Card>
+  );
+}
+
+function ReminderSettings() {
+  const { toast } = useToast();
+  const [settings, setSettings] = useState(() => {
+    if (typeof window === 'undefined') return { stretchInterval: 60, logWorkReminder: true, energyReminder: true };
+    try {
+      const raw = localStorage.getItem('qc_reminder_settings');
+      return raw ? JSON.parse(raw) : { stretchInterval: 60, logWorkReminder: true, energyReminder: true };
+    } catch { return { stretchInterval: 60, logWorkReminder: true, energyReminder: true }; }
+  });
+
+  const save = (updated: typeof settings) => {
+    setSettings(updated);
+    localStorage.setItem('qc_reminder_settings', JSON.stringify(updated));
+    toast('Reminders updated.', 'success');
+  };
+
+  return (
+    <Card>
+      <CardTitle className="text-base mb-4">Reminders</CardTitle>
+      <div className="space-y-4">
+        {/* Stretch interval */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-sm font-medium text-text-primary">Movement Breaks</p>
+              <p className="text-xs text-text-tertiary">Gentle reset reminders while you work</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {[
+              { value: 0, label: 'Off' },
+              { value: 30, label: '30m' },
+              { value: 60, label: '1hr' },
+              { value: 90, label: '90m' },
+              { value: 120, label: '2hr' },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => save({ ...settings, stretchInterval: opt.value })}
+                className={`flex-1 py-2 text-xs rounded-[var(--radius-sm)] border transition-all ${
+                  settings.stretchInterval === opt.value
+                    ? 'border-accent bg-accent-muted text-accent-text'
+                    : 'border-surface-border text-text-secondary hover:border-surface-border-hover'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Log work reminder */}
+        <div className="flex items-center justify-between py-2">
+          <div>
+            <p className="text-sm font-medium text-text-primary">End-of-day log</p>
+            <p className="text-xs text-text-tertiary">Nudge to write at 5pm</p>
+          </div>
+          <button
+            onClick={() => save({ ...settings, logWorkReminder: !settings.logWorkReminder })}
+            className={`w-10 h-6 rounded-full transition-colors ${settings.logWorkReminder ? 'bg-accent' : 'bg-surface-border'}`}
+          >
+            <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform mx-1 ${settings.logWorkReminder ? 'translate-x-4' : 'translate-x-0'}`} />
+          </button>
+        </div>
+
+        {/* Energy reminder */}
+        <div className="flex items-center justify-between py-2">
+          <div>
+            <p className="text-sm font-medium text-text-primary">Morning battery check</p>
+            <p className="text-xs text-text-tertiary">Remind to check in at 9am</p>
+          </div>
+          <button
+            onClick={() => save({ ...settings, energyReminder: !settings.energyReminder })}
+            className={`w-10 h-6 rounded-full transition-colors ${settings.energyReminder ? 'bg-accent' : 'bg-surface-border'}`}
+          >
+            <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform mx-1 ${settings.energyReminder ? 'translate-x-4' : 'translate-x-0'}`} />
+          </button>
+        </div>
+      </div>
     </Card>
   );
 }

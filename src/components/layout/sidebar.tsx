@@ -22,15 +22,18 @@ import {
   Moon,
 } from 'lucide-react';
 
+import { Activity } from 'lucide-react';
+
 const navItems = [
-  { href: '/dashboard', label: 'My Week', icon: LayoutDashboard },
-  { href: '/snapshot', label: 'The Week', icon: BarChart3 },
+  { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
   { href: '/journal', label: 'Field Notes', icon: PenLine },
-  { href: '/meetings', label: 'Prep', icon: Users },
-  { href: '/brag', label: 'Proof', icon: Trophy },
   { href: '/energy', label: 'Battery', icon: Battery },
+  { href: '/health', label: 'Career Health', icon: BarChart3 },
+  { href: '/brag', label: 'Proof', icon: Trophy },
   { href: '/escape', label: 'Runway', icon: Rocket },
   { href: '/goals', label: 'Next Moves', icon: Target },
+  { href: '/meetings', label: 'Prep', icon: Users },
+  { href: '/snapshot', label: 'Weekly Snapshot', icon: BarChart3 },
 ];
 
 export function Sidebar() {
