@@ -52,11 +52,11 @@ export async function signInWithGoogle(): Promise<User | null> {
     return null;
   }
 
-  // For web: standard OAuth redirect
+  // For web: redirect to the deployed app
   const { data, error } = await getSupabase().auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: typeof window !== 'undefined' ? window.location.origin + '/dashboard' : undefined,
+      redirectTo: 'https://quietcareer.vercel.app/dashboard',
     },
   });
 
