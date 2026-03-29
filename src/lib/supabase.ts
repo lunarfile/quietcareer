@@ -12,7 +12,7 @@ import { createClient, type User } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://yzuunyoftiypwebihdux.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_IFKY0Sv6E5iORXe2VMVU2g_zvlqZ2my';
-const AUTH_PROXY = 'https://quietcareer.fortiblox.app/auth/v1';
+const GOOGLE_CLIENT_ID = '836846008385-lo92tmemaadlq29k6dm896najtm8cn6k.apps.googleusercontent.com';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let supabase: any = null;
@@ -28,45 +28,43 @@ export function getSupabase() {
 
 // === Auth ===
 
-export async function signInWithGoogle(): Promise<User | null> {
-  // Detect if running in Capacitor (WebView) vs browser
-  const isCapacitor = typeof window !== 'undefined' && !!(window as unknown as { Capacitor?: unknown }).Capacitor;
+/**
+ * Google Sign-In using Identity Services (signInWithIdToken).
+ * Google shows YOUR domain, not Supabase's. No redirects needed.
+ * Returns a promise that resolves when sign-in completes.
+ */
+export function signInWithGoogle(): Promise<User | null> {
+  return new Promise((resolve) => {
+    const google = (window as unknown as { google?: { accounts: { id: { initialize: (config: unknown) => void; prompt: () => void } } } }).google;
 
-  if (isCapacitor) {
-    // For Capacitor: use the Supabase URL as redirect, then extract the token
-    // The callback URL will include the access token as a hash fragment
-    const { data, error } = await getSupabase().auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${SUPABASE_URL}/auth/v1/callback`,
-        skipBrowserRedirect: true,
+    if (!google) {
+      console.error('Google Identity Services not loaded');
+      resolve(null);
+      return;
+    }
+
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: async (response: { credential: string }) => {
+        // Exchange Google token with Supabase
+        const { data, error } = await getSupabase().auth.signInWithIdToken({
+          provider: 'google',
+          token: response.credential,
+        });
+
+        if (error) {
+          console.error('Supabase auth error:', error);
+          resolve(null);
+          return;
+        }
+
+        resolve(data?.user ?? null);
       },
     });
 
-    if (error || !data?.url) {
-      console.error('Google sign-in failed:', error);
-      return null;
-    }
-
-    // Open the OAuth URL in the system browser
-    window.open(data.url, '_blank');
-    return null;
-  }
-
-  // For web: standard OAuth redirect
-  const { data, error } = await getSupabase().auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: 'https://quietcareer.fortiblox.app/dashboard',
-    },
+    // Show the Google One Tap prompt
+    google.accounts.id.prompt();
   });
-
-  if (error) {
-    console.error('Google sign-in failed:', error);
-    return null;
-  }
-
-  return null;
 }
 
 /**
