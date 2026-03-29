@@ -1,93 +1,97 @@
 'use client';
 import { usePageTitle } from '@/hooks/use-page-title';
+import { scheduleBackup } from '@/lib/auto-backup';
 
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type ImpactType } from '@/lib/db';
 import { generateId, now, todayISO, relativeTime } from '@/lib/utils';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input, Textarea } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { PageHeader } from '@/components/ui/page-header';
+import { Textarea } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
+import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+import { copy } from '@/lib/copy';
+import { Highlight } from '@/components/ui/highlight';
+import { encryptWorkLog, decryptWorkLogs } from '@/lib/field-encryption';
 import {
   PenLine,
   Sparkles,
-  Tag,
   Search,
-  Calendar,
   ChevronDown,
-  ChevronUp,
+  Pin,
+  Trash2,
+  Edit3,
+  Copy,
 } from 'lucide-react';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
-import { copy } from '@/lib/copy';
-import { scheduleBackup } from '@/lib/auto-backup';
-import { useConfirm } from '@/components/ui/confirm-dialog';
-import { encryptWorkLog, decryptWorkLogs } from '@/lib/field-encryption';
-import { Highlight } from '@/components/ui/highlight';
 import { getAIApiKey, getAIProvider, getAIModel, getUserRole } from '@/lib/settings';
 import { AI_PROVIDERS, streamAIResponse, type AIProvider } from '@/lib/ai/providers';
 import { rewriteAsImpact } from '@/lib/ai/prompts';
 
-const IMPACT_TYPES: { value: ImpactType; label: string; emoji: string }[] = [
-  { value: 'shipped', label: 'Shipped', emoji: '\u{1F680}' },
-  { value: 'improved', label: 'Improved', emoji: '\u{2728}' },
-  { value: 'fixed', label: 'Fixed', emoji: '\u{1F527}' },
-  { value: 'led', label: 'Led', emoji: '\u{1F451}' },
-  { value: 'learned', label: 'Learned', emoji: '\u{1F4DA}' },
-  { value: 'mentored', label: 'Mentored', emoji: '\u{1F91D}' },
-  { value: 'proposed', label: 'Proposed', emoji: '\u{1F4A1}' },
-  { value: 'documented', label: 'Documented', emoji: '\u{1F4DD}' },
-  { value: 'other', label: 'Other', emoji: '\u{1F4CC}' },
+const IMPACT_QUICK: { value: ImpactType; emoji: string }[] = [
+  { value: 'shipped', emoji: '\u{1F680}' },
+  { value: 'improved', emoji: '\u{2728}' },
+  { value: 'fixed', emoji: '\u{1F527}' },
+  { value: 'led', emoji: '\u{1F451}' },
+  { value: 'other', emoji: '\u{1F4CC}' },
+];
+
+const TEMPLATES = [
+  'Led a meeting about ',
+  'Fixed a bug in ',
+  'Shipped ',
+  'Helped a teammate with ',
+  'Presented ',
 ];
 
 export default function JournalPage() {
   const { toast } = useToast();
   const { confirm } = useConfirm();
   usePageTitle('Field Notes');
+
+  // Form state
   const [content, setContent] = useState('');
-  const [project, setProject] = useState('');
   const [impactType, setImpactType] = useState<ImpactType>('other');
-  const [tags, setTags] = useState('');
   const [saving, setSaving] = useState(false);
-  const [mood, setMood] = useState<number | null>(null);
+  const [showMore, setShowMore] = useState(false);
+  const [project, setProject] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showForm, setShowForm] = useState(true);
+  const [showSearch, setShowSearch] = useState(false);
+
+  // Detail sheet
+  const [selectedLog, setSelectedLog] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [editing, setEditing] = useState(false);
   const [rewritingId, setRewritingId] = useState<string | null>(null);
 
+  // Data
   const rawLogs = useLiveQuery(
-    () => db.workLogs.orderBy('createdAt').reverse().limit(30).toArray()
+    () => db.workLogs.orderBy('createdAt').reverse().limit(50).toArray()
   );
-  const [recentLogs, setRecentLogs] = useState(rawLogs);
-
-  // Decrypt logs when they change
-  useEffect(() => {
-    if (!rawLogs) return;
-    decryptWorkLogs(rawLogs).then(setRecentLogs);
-  }, [rawLogs]);
-
+  const [logs, setLogs] = useState(rawLogs);
   const totalCount = useLiveQuery(() => db.workLogs.count());
 
+  useEffect(() => {
+    if (!rawLogs) return;
+    decryptWorkLogs(rawLogs).then(setLogs);
+  }, [rawLogs]);
+
+  // Submit
   const handleSubmit = async () => {
     if (!content.trim()) return;
     setSaving(true);
-
-    const tagList = tags
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean);
 
     const entry = await encryptWorkLog({
       id: generateId(),
       date: todayISO(),
       content: content.trim(),
-      tags: tagList,
+      tags: [],
       impactType,
       project: project.trim(),
       aiRewrite: null,
-      mood,
+      mood: null,
       isPrivate: false,
       isPinned: false,
       createdAt: now(),
@@ -97,15 +101,15 @@ export default function JournalPage() {
 
     setContent('');
     setProject('');
-    setTags('');
     setImpactType('other');
-    setMood(null);
+    setShowMore(false);
     setSaving(false);
     toast(copy.entryToast(), 'success');
     scheduleBackup();
   };
 
-  const handleAIRewrite = async (logId: string, logContent: string) => {
+  // AI Rewrite
+  const handleRewrite = async (logId: string, logContent: string) => {
     setRewritingId(logId);
     const provider = (await getAIProvider()) as AIProvider;
     const apiKey = await getAIApiKey();
@@ -122,396 +126,307 @@ export default function JournalPage() {
     const config = AI_PROVIDERS[provider];
     let fullText = '';
 
-    await streamAIResponse(
-      provider,
-      apiKey,
-      model ?? config.defaultModel,
-      messages,
-      {
-        onChunk: (text) => { fullText += text; },
-        onDone: async (finalText) => {
-          await db.workLogs.update(logId, { aiRewrite: finalText, updatedAt: now() });
-          setRewritingId(null);
-          toast('Impact statement generated.', 'success');
-        },
-        onError: (err) => {
-          setRewritingId(null);
-          toast(`Failed: ${err.message}`, 'error');
-        },
-      }
-    );
+    await streamAIResponse(provider, apiKey, model ?? config.defaultModel, messages, {
+      onChunk: (text) => { fullText += text; },
+      onDone: async (finalText) => {
+        await db.workLogs.update(logId, { aiRewrite: finalText, updatedAt: now() });
+        setRewritingId(null);
+        toast('Impact statement generated.', 'success');
+        scheduleBackup();
+      },
+      onError: (err) => {
+        setRewritingId(null);
+        toast(`Failed: ${err.message}`, 'error');
+      },
+    });
   };
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
-
-  const handleEdit = (logId: string, content: string) => {
-    setEditingId(logId);
-    setEditContent(content);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingId || !editContent.trim()) return;
-    await db.workLogs.update(editingId, { content: editContent.trim(), updatedAt: now() });
-    setEditingId(null);
-    setEditContent('');
-    toast('Updated.', 'success');
-  };
-
+  // Delete
   const handleDelete = async (logId: string) => {
-    const ok = await confirm({ title: 'Delete entry?', description: 'This cannot be undone. The entry will be permanently removed.', confirmLabel: 'Delete', variant: 'danger' });
+    const ok = await confirm({ title: 'Delete entry?', description: 'This cannot be undone.', confirmLabel: 'Delete', variant: 'danger' });
     if (!ok) return;
     await db.workLogs.delete(logId);
+    setSelectedLog(null);
     toast('Entry removed.', 'success');
+    scheduleBackup();
   };
 
-  const handlePin = async (logId: string, currentlyPinned: boolean) => {
-    await db.workLogs.update(logId, { isPinned: !currentlyPinned, updatedAt: now() });
-    toast(currentlyPinned ? 'Unpinned.' : 'Pinned to top.', 'success');
+  // Pin
+  const handlePin = async (logId: string, pinned: boolean) => {
+    await db.workLogs.update(logId, { isPinned: !pinned, updatedAt: now() });
+    toast(pinned ? 'Unpinned.' : 'Pinned.', 'success');
   };
 
-  // Group logs by date (pinned entries first)
-  const sortedLogs = [...(recentLogs ?? [])].sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
-    return b.createdAt - a.createdAt;
+  // Save edit
+  const handleSaveEdit = async (logId: string) => {
+    if (!editContent.trim()) return;
+    await db.workLogs.update(logId, { content: editContent.trim(), updatedAt: now() });
+    setEditing(false);
+    toast('Updated.', 'success');
+    scheduleBackup();
+  };
+
+  // Filter + sort (pinned first)
+  const filteredLogs = (logs ?? [])
+    .filter((log) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return log.content.toLowerCase().includes(q) || log.project.toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return b.createdAt - a.createdAt;
+    });
+
+  // Group by date
+  const grouped: Record<string, typeof filteredLogs> = {};
+  filteredLogs.forEach((log) => {
+    if (!grouped[log.date]) grouped[log.date] = [];
+    grouped[log.date].push(log);
   });
 
-  const filteredLogs = sortedLogs.filter((log) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      log.content.toLowerCase().includes(q) ||
-      log.project.toLowerCase().includes(q) ||
-      log.tags.some((t) => t.toLowerCase().includes(q))
-    );
-  });
-
-  const groupedLogs: Record<string, typeof filteredLogs> = {};
-  filteredLogs?.forEach((log) => {
-    if (!groupedLogs[log.date]) groupedLogs[log.date] = [];
-    groupedLogs[log.date]!.push(log);
-  });
-
-  const formatDateLabel = (dateStr: string) => {
-    const date = parseISO(dateStr);
+  const formatDate = (d: string) => {
+    const date = parseISO(d);
     if (isToday(date)) return 'Today';
     if (isYesterday(date)) return 'Yesterday';
-    return format(date, 'EEEE, MMMM d');
+    return format(date, 'EEE, MMM d');
   };
 
+  // Selected log for detail sheet
+  const detailLog = selectedLog ? (logs ?? []).find((l) => l.id === selectedLog) : null;
+
   return (
-    <div className="space-y-6">
-      {/* Toggle form */}
-      <div className="flex justify-end">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowForm(!showForm)}
-        >
-          {showForm ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          {showForm ? 'Hide Form' : 'New Entry'}
-        </Button>
+    <div className="space-y-5">
+      {/* Header */}
+      <div>
+        <h1 className="text-lg font-semibold text-text-primary">Field Notes</h1>
+        <p className="text-xs text-text-tertiary">{totalCount ?? 0} proof points</p>
       </div>
 
-      {/* New Entry Form */}
-      {showForm && (
-        <Card className="animate-fade-up">
-          <div className="flex flex-col gap-4">
-            <Textarea
-              id="content"
-              placeholder="What actually happened at work today?"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={3}
-            />
+      {/* Write area — always visible */}
+      <div className="bg-bg-secondary border border-surface-border rounded-xl p-4">
+        <Textarea
+          id="content"
+          placeholder="What actually happened at work today?"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          rows={3}
+        />
 
-            {/* Quick-add templates */}
-            {!content && (
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  'Led a meeting about ',
-                  'Fixed a bug in ',
-                  'Shipped ',
-                  'Helped a teammate with ',
-                  'Presented ',
-                  'Wrote docs for ',
-                  'Reviewed code for ',
-                ].map((template) => (
-                  <button
-                    key={template}
-                    onClick={() => setContent(template)}
-                    className="px-2.5 py-1 text-xs rounded-full border border-surface-border text-text-tertiary hover:border-accent/50 hover:text-text-secondary transition-all"
-                  >
-                    {template}...
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Input
-                id="project"
-                label="Project"
-                placeholder="e.g., Dashboard Redesign"
-                value={project}
-                onChange={(e) => setProject(e.target.value)}
-              />
-              <Input
-                id="tags"
-                label="Tags"
-                placeholder="leadership, debugging, frontend"
-                helper="Comma-separated"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-              />
-            </div>
-
-            {/* Impact Type */}
-            <div>
-              <label className="text-sm font-medium text-text-secondary mb-2 block">
-                Impact Type
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {IMPACT_TYPES.map((t) => (
-                  <button
-                    key={t.value}
-                    onClick={() => setImpactType(t.value)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border transition-all duration-150 ${
-                      impactType === t.value
-                        ? 'border-accent bg-accent-muted text-accent-text scale-[1.02]'
-                        : 'border-surface-border text-text-tertiary hover:border-surface-border-hover hover:text-text-secondary'
-                    }`}
-                  >
-                    <span>{t.emoji}</span>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Mood (optional) */}
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-text-tertiary">Mood:</span>
-              <div className="flex gap-1">
-                {[
-                  { val: 1, emoji: '\u{1F614}' },
-                  { val: 2, emoji: '\u{1F610}' },
-                  { val: 3, emoji: '\u{1F642}' },
-                  { val: 4, emoji: '\u{1F60A}' },
-                  { val: 5, emoji: '\u{1F929}' },
-                ].map((m) => (
-                  <button
-                    key={m.val}
-                    onClick={() => setMood(mood === m.val ? null : m.val)}
-                    aria-label={`Mood ${m.val} of 5`}
-                    className={`w-8 h-8 rounded-full text-sm transition-all ${
-                      mood === m.val
-                        ? 'bg-accent-muted scale-110 ring-1 ring-accent'
-                        : 'hover:bg-surface-highlight opacity-50 hover:opacity-100'
-                    }`}
-                  >
-                    {m.emoji}
-                  </button>
-                ))}
-              </div>
-              {mood && (
-                <span className="text-[10px] text-text-tertiary">optional</span>
-              )}
-            </div>
-
-            {/* Lunch (passive spend tracking — optional) */}
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-text-tertiary">Lunch:</span>
-              {(['brought', 'bought', 'skipped'] as const).map((choice) => (
-                <button
-                  key={choice}
-                  onClick={() => {
-                    const current = localStorage.getItem('qc_lunch_today');
-                    if (current === choice) {
-                      localStorage.removeItem('qc_lunch_today');
-                    } else {
-                      localStorage.setItem('qc_lunch_today', choice);
-                      // Track for insights
-                      const history = JSON.parse(localStorage.getItem('qc_lunch_history') ?? '[]');
-                      history.push({ date: todayISO(), choice });
-                      localStorage.setItem('qc_lunch_history', JSON.stringify(history.slice(-90)));
-                    }
-                  }}
-                  className={`px-2.5 py-1 text-xs rounded-full border transition-all ${
-                    localStorage.getItem('qc_lunch_today') === choice
-                      ? 'border-accent bg-accent-muted text-accent-text'
-                      : 'border-surface-border text-text-tertiary hover:border-surface-border-hover'
-                  }`}
-                >
-                  {choice === 'brought' ? '\u{1F371} Brought' : choice === 'bought' ? '\u{1F4B5} Bought' : '\u{23ED}\u{FE0F} Skipped'}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <Button
-                onClick={handleSubmit}
-                disabled={!content.trim() || saving}
+        {/* Templates when empty */}
+        {!content && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {TEMPLATES.map((t) => (
+              <button
+                key={t}
+                onClick={() => setContent(t)}
+                className="px-2.5 py-1 text-xs rounded-full border border-surface-border text-text-tertiary hover:border-accent/50 transition-all"
               >
-                {saving ? 'Saving...' : 'Save Entry'}
-              </Button>
-              <span className="text-xs text-text-tertiary">
-                {content.length > 0 ? `${content.length} characters` : ''}
-              </span>
-            </div>
+                {t}...
+              </button>
+            ))}
           </div>
-        </Card>
-      )}
+        )}
 
-      {/* Search */}
-      {(totalCount ?? 0) > 0 && (
+        {/* Impact type + more details */}
+        <div className="flex items-center justify-between mt-3">
+          <div className="flex gap-1">
+            {IMPACT_QUICK.map((t) => (
+              <button
+                key={t.value}
+                onClick={() => setImpactType(t.value)}
+                className={`w-8 h-8 rounded-full text-sm transition-all ${
+                  impactType === t.value
+                    ? 'bg-accent-muted ring-1 ring-accent scale-110'
+                    : 'opacity-40 hover:opacity-70'
+                }`}
+              >
+                {t.emoji}
+              </button>
+            ))}
+            <button
+              onClick={() => setShowMore(!showMore)}
+              className="w-8 h-8 rounded-full text-text-tertiary hover:text-text-secondary flex items-center justify-center"
+            >
+              <ChevronDown size={14} className={`transition-transform ${showMore ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+          <Button size="sm" onClick={handleSubmit} disabled={!content.trim() || saving}>
+            {saving ? '...' : 'Save'}
+          </Button>
+        </div>
+
+        {/* More details (hidden by default) */}
+        {showMore && (
+          <div className="mt-3 pt-3 border-t border-surface-border animate-fade-in">
+            <input
+              placeholder="Project name (optional)"
+              value={project}
+              onChange={(e) => setProject(e.target.value)}
+              className="w-full h-9 px-3 rounded-[var(--radius-sm)] border border-surface-border bg-bg-input text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Search (only when > 5 entries) */}
+      {(totalCount ?? 0) > 5 && (
         <div className="relative">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
-          />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
           <input
             type="text"
-            placeholder="Search entries..."
-            aria-label="Search field notes"
+            placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-10 pl-10 pr-4 rounded-[var(--radius-sm)] border border-surface-border bg-bg-input text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-colors"
+            aria-label="Search field notes"
+            className="w-full h-9 pl-9 pr-3 rounded-full border border-surface-border bg-bg-input text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
           />
         </div>
       )}
 
-      {/* Entries by date */}
-      {Object.keys(groupedLogs).length === 0 && (totalCount ?? 0) === 0 && (
+      {/* Entry list — minimal rows */}
+      {Object.keys(grouped).length === 0 && (totalCount ?? 0) === 0 && (
         <EmptyState
           icon={PenLine}
           title="Nothing here yet. That's fine."
-          description="Your first entry doesn't need to be good. Just write what happened today — even one sentence counts. The AI handles the rest."
+          description="Your first entry doesn't need to be good. Just write what happened today."
         />
       )}
 
-      {Object.entries(groupedLogs).map(([date, logs]) => (
+      {Object.entries(grouped).map(([date, entries]) => (
         <div key={date}>
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-sm font-medium text-text-secondary">
-              {formatDateLabel(date)}
-            </span>
-            <div className="flex-1 h-px bg-surface-border" />
-            <Badge variant="muted">{logs!.length}</Badge>
-          </div>
-
-          <div className="space-y-2">
-            {logs!.map((log) => {
-              const impactInfo = IMPACT_TYPES.find((t) => t.value === log.impactType);
-              return (
-                <Card
-                  key={log.id}
-                  className="group hover:border-surface-border-hover transition-all duration-150"
-                >
-                  <div className="flex gap-3">
-                    {/* Impact emoji */}
-                    <div className="w-8 h-8 rounded-lg bg-surface-highlight flex items-center justify-center shrink-0 text-sm">
-                      {impactInfo?.emoji ?? '\u{1F4CC}'}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-text-primary leading-relaxed">
-                        <Highlight text={log.content} query={searchQuery} />
-                        {log.mood && (
-                          <span className="ml-2 text-xs opacity-60">
-                            {['\u{1F614}', '\u{1F610}', '\u{1F642}', '\u{1F60A}', '\u{1F929}'][log.mood - 1]}
-                          </span>
-                        )}
-                      </p>
-
-                      {/* AI rewrite */}
-                      {log.aiRewrite && (
-                        <div className="mt-2 pl-3 border-l-2 border-accent/50">
-                          <p className="text-xs text-text-tertiary uppercase tracking-wider mb-1 flex items-center gap-1">
-                            <Sparkles size={10} className="text-accent" /> Impact version
-                          </p>
-                          <p className="text-sm text-accent-text/80 leading-relaxed">
-                            {log.aiRewrite}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Tags row */}
-                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                        {log.project && (
-                          <Badge variant="accent">{log.project}</Badge>
-                        )}
-                        <Badge variant="default">{impactInfo?.label ?? 'Other'}</Badge>
-                        {log.tags.map((tag) => (
-                          <Badge key={tag} variant="muted">
-                            <Tag size={8} />
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      <span className="text-[11px] text-text-tertiary font-mono">
-                        {relativeTime(log.createdAt)}
-                      </span>
-                      <div className="flex items-center gap-2 opacity-40 md:opacity-0 group-hover:opacity-100 transition-all">
-                        {!log.aiRewrite && (
-                          <button
-                            onClick={() => handleAIRewrite(log.id, log.content)}
-                            disabled={rewritingId === log.id}
-                            className="text-xs text-accent hover:text-accent-hover flex items-center gap-1"
-                          >
-                            <Sparkles size={10} />
-                            {rewritingId === log.id ? '...' : 'AI'}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handlePin(log.id, log.isPinned)}
-                          className={`text-xs transition-colors ${log.isPinned ? 'text-accent' : 'text-text-tertiary hover:text-accent'}`}
-                          aria-label={log.isPinned ? 'Unpin' : 'Pin'}
-                        >
-                          {log.isPinned ? '\u{1F4CC}' : 'Pin'}
-                        </button>
-                        <button
-                          onClick={() => handleEdit(log.id, log.content)}
-                          className="text-xs text-text-tertiary hover:text-text-secondary"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(log.id)}
-                          className="text-xs text-text-tertiary hover:text-danger-text"
-                        >
-                          \u00D7
-                        </button>
-                      </div>
-                    </div>
+          <p className="text-[10px] text-text-tertiary uppercase tracking-wider mb-2">
+            {formatDate(date)}
+          </p>
+          <div className="space-y-0.5">
+            {entries!.map((log) => (
+              <button
+                key={log.id}
+                onClick={() => { setSelectedLog(log.id); setEditing(false); }}
+                className="flex items-start gap-3 py-3 w-full text-left rounded-lg -mx-1 px-1 active:bg-surface-highlight transition-colors"
+              >
+                <span className="text-sm mt-0.5 shrink-0">
+                  {IMPACT_QUICK.find((t) => t.value === log.impactType)?.emoji ?? '\u{1F4CC}'}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-text-primary leading-relaxed line-clamp-2">
+                    <Highlight text={log.content} query={searchQuery} />
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    {log.project && <span className="text-[10px] text-accent">{log.project}</span>}
+                    {log.isPinned && <Pin size={8} className="text-accent" />}
+                    <span className="text-[10px] text-text-tertiary">{relativeTime(log.createdAt)}</span>
                   </div>
-
-                  {/* Inline edit */}
-                  {editingId === log.id && (
-                    <div className="mt-3 pt-3 border-t border-surface-border animate-fade-in">
-                      <textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        rows={2}
-                        className="w-full rounded-[var(--radius-sm)] border border-surface-border bg-bg-input px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none"
-                      />
-                      <div className="flex gap-2 mt-2">
-                        <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
-                      </div>
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
+                </div>
+                {log.aiRewrite && <Sparkles size={10} className="text-accent mt-1.5 shrink-0" />}
+              </button>
+            ))}
           </div>
         </div>
       ))}
+
+      {/* Entry detail bottom sheet */}
+      <BottomSheet
+        open={!!detailLog}
+        onClose={() => setSelectedLog(null)}
+        title={detailLog ? formatDate(detailLog.date) : ''}
+      >
+        {detailLog && (
+          <div className="space-y-4 pb-4">
+            {/* Impact + time */}
+            <div className="flex items-center gap-2">
+              <span className="text-lg">
+                {IMPACT_QUICK.find((t) => t.value === detailLog.impactType)?.emoji}
+              </span>
+              <span className="text-xs text-text-tertiary">
+                {format(new Date(detailLog.createdAt), 'h:mm a')}
+              </span>
+              {detailLog.isPinned && (
+                <span className="text-[10px] text-accent">Pinned</span>
+              )}
+            </div>
+
+            {/* Content (editable) */}
+            {editing ? (
+              <div>
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={4}
+                  className="w-full rounded-lg border border-surface-border bg-bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none resize-none"
+                />
+                <div className="flex gap-2 mt-2">
+                  <Button size="sm" onClick={() => handleSaveEdit(detailLog.id)}>Save</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-base text-text-primary leading-relaxed">{detailLog.content}</p>
+            )}
+
+            {/* AI rewrite */}
+            {detailLog.aiRewrite && (
+              <div className="pl-3 border-l-2 border-accent/50">
+                <p className="text-[10px] text-accent uppercase tracking-wider mb-1">Impact version</p>
+                <p className="text-sm text-accent-text/80 leading-relaxed">{detailLog.aiRewrite}</p>
+              </div>
+            )}
+
+            {/* Meta */}
+            {detailLog.project && (
+              <p className="text-xs text-text-secondary">Project: {detailLog.project}</p>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-surface-border">
+              {!detailLog.aiRewrite && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleRewrite(detailLog.id, detailLog.content)}
+                  disabled={rewritingId === detailLog.id}
+                >
+                  <Sparkles size={12} />
+                  {rewritingId === detailLog.id ? 'Writing...' : 'AI Impact'}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => { setEditing(true); setEditContent(detailLog.content); }}
+              >
+                <Edit3 size={12} /> Edit
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handlePin(detailLog.id, detailLog.isPinned)}
+              >
+                <Pin size={12} /> {detailLog.isPinned ? 'Unpin' : 'Pin'}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  navigator.clipboard.writeText(detailLog.aiRewrite ?? detailLog.content);
+                  toast('Copied.', 'success');
+                }}
+              >
+                <Copy size={12} /> Copy
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-danger-text"
+                onClick={() => handleDelete(detailLog.id)}
+              >
+                <Trash2 size={12} /> Delete
+              </Button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
     </div>
   );
 }

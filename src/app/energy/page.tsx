@@ -1,5 +1,6 @@
 'use client';
 import { usePageTitle } from '@/hooks/use-page-title';
+import { scheduleBackup } from '@/lib/auto-backup';
 
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -8,34 +9,20 @@ import { generateId, now, todayISO } from '@/lib/utils';
 import { Card, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/input';
-import { MetricCard } from '@/components/ui/metric-card';
-import { PageHeader } from '@/components/ui/page-header';
-import { EmptyState } from '@/components/ui/empty-state';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/toast';
-import { Battery, TrendingUp, TrendingDown, Zap, Calendar } from 'lucide-react';
-import dynamic from 'next/dynamic';
-const EnergyChart = dynamic(() => import('@/components/charts/energy-chart').then((m) => m.EnergyChart), { ssr: false });
-import { suggestEnergyMode, getModeCopy } from '@/lib/scoring';
 import { copy } from '@/lib/copy';
-import { scheduleBackup } from '@/lib/auto-backup';
+import { encryptCheckin } from '@/lib/field-encryption';
+import { suggestEnergyMode, getModeCopy } from '@/lib/scoring';
 import { MicroRecoveryCard } from '@/components/dashboard/micro-recovery';
 import { detectEnergyPatterns } from '@/lib/wellness-intelligence';
-import { encryptCheckin } from '@/lib/field-encryption';
 import { format, parseISO, isToday } from 'date-fns';
 
-const ENERGY_LEVELS: {
-  level: EnergyLevel;
-  emoji: string;
-  label: string;
-  color: string;
-  barColor: string;
-}[] = [
-  { level: 1, emoji: '\u{1F634}', label: 'Exhausted', color: 'border-energy-1 bg-energy-1/10 ring-energy-1/30', barColor: 'bg-energy-1' },
-  { level: 2, emoji: '\u{1F610}', label: 'Low', color: 'border-energy-2 bg-energy-2/10 ring-energy-2/30', barColor: 'bg-energy-2' },
-  { level: 3, emoji: '\u{1F642}', label: 'Okay', color: 'border-energy-3 bg-energy-3/10 ring-energy-3/30', barColor: 'bg-energy-3' },
-  { level: 4, emoji: '\u{1F60A}', label: 'Good', color: 'border-energy-4 bg-energy-4/10 ring-energy-4/30', barColor: 'bg-energy-4' },
-  { level: 5, emoji: '\u{1F525}', label: 'Thriving', color: 'border-energy-5 bg-energy-5/10 ring-energy-5/30', barColor: 'bg-energy-5' },
+const ENERGY_LEVELS: { level: EnergyLevel; emoji: string; label: string }[] = [
+  { level: 1, emoji: '\u{1F634}', label: 'Exhausted' },
+  { level: 2, emoji: '\u{1F610}', label: 'Low' },
+  { level: 3, emoji: '\u{1F642}', label: 'Okay' },
+  { level: 4, emoji: '\u{1F60A}', label: 'Good' },
+  { level: 5, emoji: '\u{1F525}', label: 'Thriving' },
 ];
 
 export default function EnergyPage() {
@@ -48,17 +35,13 @@ export default function EnergyPage() {
   const todayCheckin = useLiveQuery(
     () => db.energyCheckins.where('date').equals(todayISO()).first()
   );
-
   const recentCheckins = useLiveQuery(
-    () => db.energyCheckins.orderBy('createdAt').reverse().limit(30).toArray()
+    () => db.energyCheckins.orderBy('createdAt').reverse().limit(14).toArray()
   );
-
-  const totalCheckins = useLiveQuery(() => db.energyCheckins.count());
 
   const handleSubmit = async () => {
     if (!selectedLevel) return;
     setSaving(true);
-
     const checkin = await encryptCheckin({
       id: generateId(),
       date: todayISO(),
@@ -69,88 +52,31 @@ export default function EnergyPage() {
       createdAt: now(),
     });
     await db.energyCheckins.add(checkin);
-
     setSelectedLevel(null);
     setNotes('');
     setSaving(false);
     toast(copy.energyToast(), 'success');
+    scheduleBackup();
   };
 
   // Stats
   const last7 = recentCheckins?.slice(0, 7) ?? [];
-  const avg = last7.length > 0
-    ? (last7.reduce((s, e) => s + e.level, 0) / last7.length)
-    : 0;
-  const prevAvg = recentCheckins && recentCheckins.length > 7
-    ? recentCheckins.slice(7, 14).reduce((s, e) => s + e.level, 0) / Math.min(recentCheckins.length - 7, 7)
-    : avg;
-  const trend = avg > prevAvg ? 'up' : avg < prevAvg ? 'down' : 'flat';
+  const avg = last7.length > 0 ? last7.reduce((s, e) => s + e.level, 0) / last7.length : 0;
 
   return (
-    <div className="animate-fade-up space-y-6">
-      <PageHeader
-        icon={Battery}
-        iconColor="text-energy-4"
-        title="Battery"
-        subtitle="Track what drains you and what charges you"
-      />
-
-      {/* Today's check-in */}
-      {todayCheckin ? (
+    <div className="animate-fade-up space-y-5">
+      {/* Before check-in */}
+      {!todayCheckin ? (
         <>
-          <Card variant="accent">
-            <div className="flex items-center gap-4">
-              <span className="text-4xl">
-                {ENERGY_LEVELS[todayCheckin.level - 1].emoji}
-              </span>
-              <div>
-                <p className="text-xs uppercase tracking-wider text-text-tertiary mb-1">
-                  Today&apos;s Energy
-                </p>
-                <p className="text-xl font-semibold text-text-primary">
-                  {ENERGY_LEVELS[todayCheckin.level - 1].label}
-                  <span className="text-sm font-normal text-text-secondary ml-2">
-                    {todayCheckin.level} / 5
-                  </span>
-                </p>
-                {todayCheckin.notes && (
-                  <p className="text-sm text-text-secondary mt-1">{todayCheckin.notes}</p>
-                )}
-              </div>
-            </div>
-          </Card>
+          <div>
+            <h1 className="text-xl font-semibold text-text-primary tracking-tight">
+              How are you feeling?
+            </h1>
+            <p className="text-sm text-text-tertiary mt-1">Only you see this.</p>
+          </div>
 
-          {/* Micro-recovery (only when energy is low) */}
-          <MicroRecoveryCard energyLevel={todayCheckin.level} />
-
-          {/* Adaptive Mode Suggestion */}
-          {(() => {
-            const mode = suggestEnergyMode(avg > 0 ? avg : todayCheckin.level);
-            const mc = getModeCopy(mode);
-            return (
-              <Card className={mc.bgColor}>
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">{mc.emoji}</span>
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-text-tertiary mb-1">Suggested Mode</p>
-                    <p className={`text-base font-semibold ${mc.color}`}>{mc.label}</p>
-                    <p className="text-sm text-text-secondary mt-1 leading-relaxed">{mc.advice}</p>
-                  </div>
-                </div>
-              </Card>
-            );
-          })()}
-        </>
-      ) : (
-        <Card>
-          <p className="text-base font-medium text-text-primary mb-2">
-            How are you feeling today?
-          </p>
-          <p className="text-sm text-text-tertiary mb-5">
-            Only you can see this. It helps spot patterns over time.
-          </p>
-
-          <div className="grid grid-cols-5 gap-2 mb-5" role="radiogroup" aria-label="Energy level">
+          {/* Energy selector — large buttons */}
+          <div className="flex gap-3">
             {ENERGY_LEVELS.map((e) => (
               <button
                 key={e.level}
@@ -158,175 +84,138 @@ export default function EnergyPage() {
                 role="radio"
                 aria-checked={selectedLevel === e.level}
                 aria-label={`Energy level ${e.level}: ${e.label}`}
-                className={`flex flex-col items-center gap-2 py-4 rounded-[var(--radius-md)] border-2 transition-all duration-200 ${
+                className={`flex-1 flex flex-col items-center gap-2 py-5 rounded-2xl border-2 transition-all duration-200 ${
                   selectedLevel === e.level
-                    ? `${e.color} ring-2 scale-[1.05]`
-                    : 'border-surface-border hover:border-surface-border-hover'
+                    ? 'border-accent bg-accent-muted ring-2 ring-accent/30 scale-105'
+                    : 'border-surface-border active:scale-95'
                 }`}
               >
                 <span className="text-3xl">{e.emoji}</span>
-                <span className="text-[11px] font-medium text-text-secondary">
+                <span className="text-[10px] font-medium text-text-secondary tracking-wide">
                   {e.label}
                 </span>
               </button>
             ))}
           </div>
 
-          <Textarea
-            id="energy-notes"
-            placeholder="Anything on your mind? (optional)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-          />
+          {/* Note (shows after selecting) */}
+          {selectedLevel && (
+            <div className="animate-fade-in">
+              <Textarea
+                id="energy-notes"
+                placeholder="Anything on your mind? (optional)"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+              />
+            </div>
+          )}
 
           <Button
+            className="w-full"
+            size="lg"
             onClick={handleSubmit}
             disabled={!selectedLevel || saving}
-            className="mt-4"
           >
             {saving ? 'Saving...' : 'Log Energy'}
           </Button>
-        </Card>
-      )}
+        </>
+      ) : (
+        /* After check-in */
+        <>
+          <div>
+            <h1 className="text-lg font-semibold text-text-primary">Battery</h1>
+            <p className="text-xs text-text-tertiary">Checked in today</p>
+          </div>
 
-      {/* Stats row */}
-      {(totalCheckins ?? 0) > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          <MetricCard
-            label="7-Day Avg"
-            value={avg > 0 ? avg.toFixed(1) : '\u2014'}
-            icon={Zap}
-            iconColor="text-accent"
-            suffix="/ 5"
-            trend={last7.length >= 3 ? (trend as 'up' | 'down' | 'flat') : undefined}
-          />
-          <MetricCard
-            label="Total Check-ins"
-            value={totalCheckins ?? 0}
-            icon={Calendar}
-            iconColor="text-accent-secondary"
-          />
-          <MetricCard
-            label="Best Day"
-            value={last7.length > 0 ? Math.max(...last7.map((e) => e.level)) : '\u2014'}
-            icon={TrendingUp}
-            iconColor="text-success"
-            suffix="/ 5"
-          />
-        </div>
-      )}
-
-      {/* Recharts energy trend */}
-      {recentCheckins && recentCheckins.length > 2 && (
-        <Card>
-          <CardTitle className="text-base mb-4">Energy Over Time</CardTitle>
-          <CardContent>
-            <EnergyChart checkins={recentCheckins} />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Weekly bar chart */}
-      {last7.length > 0 && (
-        <Card>
-          <CardTitle className="text-base mb-4">Last 7 Check-ins</CardTitle>
-          <CardContent>
-            <div className="flex items-end gap-2 h-32">
-              {[...last7].reverse().map((e, i) => {
-                const info = ENERGY_LEVELS[e.level - 1];
-                return (
-                  <div key={e.id} className="flex-1 flex flex-col items-center gap-2">
-                    <span className="text-xs">{info.emoji}</span>
-                    <div className="w-full flex flex-col justify-end h-20">
-                      <div
-                        className={`w-full rounded-t-md ${info.barColor} transition-all duration-700`}
-                        style={{
-                          height: `${(e.level / 5) * 100}%`,
-                          animationDelay: `${i * 0.08}s`,
-                        }}
-                      />
-                    </div>
-                    <span className="text-[10px] text-text-tertiary">
-                      {format(parseISO(e.date), 'EEE')}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Intelligent Pattern Detection */}
-      {(() => {
-        if (!recentCheckins || recentCheckins.length < 7) return null;
-        const patterns = detectEnergyPatterns(
-          recentCheckins.map((c) => ({ date: c.date, level: c.level })),
-          [] // logs would come from a query — keeping it simple for now
-        );
-        if (patterns.length === 0) return null;
-        return (
-          <Card>
-            <CardTitle className="text-base mb-3">What Your Data Shows</CardTitle>
-            <CardContent>
-              <div className="space-y-2">
-                {patterns.map((p, i) => (
-                  <p key={i} className={`text-sm leading-relaxed ${p.severity === 'warning' ? 'text-warning-text' : 'text-text-secondary'}`}>
-                    {p.message}
-                  </p>
-                ))}
+          {/* Today's level + mode */}
+          <Card className={getModeCopy(suggestEnergyMode(avg > 0 ? avg : todayCheckin.level)).bgColor}>
+            <div className="flex items-center gap-4 mb-3">
+              <span className="text-4xl">{ENERGY_LEVELS[todayCheckin.level - 1].emoji}</span>
+              <div>
+                <p className="text-xl font-semibold text-text-primary">
+                  {ENERGY_LEVELS[todayCheckin.level - 1].label}
+                  <span className="text-sm font-normal text-text-secondary ml-2">{todayCheckin.level}/5</span>
+                </p>
+                {todayCheckin.notes && (
+                  <p className="text-sm text-text-secondary mt-0.5">{todayCheckin.notes}</p>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        );
-      })()}
-
-      {/* History */}
-      {recentCheckins && recentCheckins.length > 0 && (
-        <div>
-          <h2 className="text-base font-medium text-text-primary mb-3">History</h2>
-          <div className="space-y-1.5">
-            {recentCheckins.map((c) => {
-              const info = ENERGY_LEVELS[c.level - 1];
+            </div>
+            {/* Mode suggestion inline */}
+            {(() => {
+              const mode = suggestEnergyMode(avg > 0 ? avg : todayCheckin.level);
+              const mc = getModeCopy(mode);
               return (
-                <div
-                  key={c.id}
-                  className="flex items-center gap-3 py-2.5 px-3 rounded-[var(--radius-sm)] hover:bg-surface-highlight transition-colors"
-                >
-                  <span className="text-lg">{info.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-text-primary">{info.label}</span>
-                    {c.notes && (
-                      <p className="text-xs text-text-tertiary truncate">{c.notes}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-8 h-1.5 rounded-full ${info.barColor}/50`}>
-                      <div
-                        className={`h-full rounded-full ${info.barColor}`}
-                        style={{ width: `${(c.level / 5) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-[11px] text-text-tertiary font-mono w-12 text-right">
-                      {isToday(parseISO(c.date))
-                        ? 'Today'
-                        : format(parseISO(c.date), 'MMM d')}
-                    </span>
+                <div className="flex items-center gap-2 pt-3 border-t border-surface-border/30">
+                  <span className="text-lg">{mc.emoji}</span>
+                  <div>
+                    <p className={`text-sm font-semibold ${mc.color}`}>{mc.label} Mode</p>
+                    <p className="text-xs text-text-secondary">{mc.advice.split('.')[0]}.</p>
                   </div>
                 </div>
               );
-            })}
-          </div>
-        </div>
-      )}
+            })()}
+          </Card>
 
-      {(totalCheckins ?? 0) === 0 && todayCheckin && (
-        <EmptyState
-          icon={Battery}
-          title="Your first check-in is logged"
-          description="Come back tomorrow to start seeing patterns. Consistency reveals insights."
-        />
+          {/* Micro-recovery (only when low energy) */}
+          <MicroRecoveryCard energyLevel={todayCheckin.level} />
+
+          {/* Last 7 bar chart */}
+          {last7.length > 1 && (
+            <Card>
+              <CardTitle className="text-sm mb-3">Last 7 Check-ins</CardTitle>
+              <CardContent>
+                <div className="flex items-end gap-2 h-24">
+                  {[...last7].reverse().map((e) => {
+                    const info = ENERGY_LEVELS[e.level - 1];
+                    return (
+                      <div key={e.id} className="flex-1 flex flex-col items-center gap-1.5">
+                        <span className="text-xs">{info.emoji}</span>
+                        <div className="w-full flex flex-col justify-end h-14">
+                          <div
+                            className="w-full rounded-t-md transition-all duration-500"
+                            style={{
+                              height: `${(e.level / 5) * 100}%`,
+                              backgroundColor: `var(--color-energy-${e.level})`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-[9px] text-text-tertiary">
+                          {format(parseISO(e.date), 'EEE')}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pattern insights */}
+          {(() => {
+            if (!recentCheckins || recentCheckins.length < 7) return null;
+            const patterns = detectEnergyPatterns(
+              recentCheckins.map((c) => ({ date: c.date, level: c.level })),
+              []
+            );
+            if (patterns.length === 0) return null;
+            return (
+              <Card>
+                <CardTitle className="text-sm mb-3">What Your Data Shows</CardTitle>
+                <CardContent>
+                  <div className="space-y-2">
+                    {patterns.slice(0, 2).map((p, i) => (
+                      <p key={i} className={`text-sm leading-relaxed ${p.severity === 'warning' ? 'text-warning-text' : 'text-text-secondary'}`}>
+                        {p.message}
+                      </p>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+        </>
       )}
     </div>
   );
