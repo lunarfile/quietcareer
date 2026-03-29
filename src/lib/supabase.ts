@@ -8,16 +8,19 @@
  * - One row per user in user_backups table
  */
 
-import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
+import { createClient, type User } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://yzuunyoftiypwebihdux.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_IFKY0Sv6E5iORXe2VMVU2g_zvlqZ2my';
 
-let supabase: SupabaseClient | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let supabase: any = null;
 
-export function getSupabase(): SupabaseClient {
+export function getSupabase() {
   if (!supabase) {
-    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      db: { schema: 'quietcareer' },
+    });
   }
   return supabase;
 }
@@ -50,7 +53,7 @@ export async function signOut(): Promise<void> {
 }
 
 export function onAuthStateChange(callback: (user: User | null) => void) {
-  return getSupabase().auth.onAuthStateChange((_, session) => {
+  return getSupabase().auth.onAuthStateChange((_event: string, session: { user: User | null } | null) => {
     callback(session?.user ?? null);
   });
 }
