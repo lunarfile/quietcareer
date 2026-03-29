@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { copy } from '@/lib/copy';
 import { useToast } from '@/components/ui/toast';
 import Link from 'next/link';
+import { QuickActionsCarousel } from '@/components/dashboard/quick-actions-carousel';
 import {
   PenLine,
   Flame,
@@ -138,6 +139,46 @@ export default function DashboardPage() {
         </h1>
       </div>
 
+      {/* Quick Actions Carousel */}
+      <div>
+        <span className="text-xs text-text-tertiary uppercase tracking-wider font-medium mb-3 block">
+          Quick Actions
+        </span>
+        <QuickActionsCarousel />
+      </div>
+
+      {/* Recent Activity — horizontal scrollable cards */}
+      {recentLogs && recentLogs.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs text-text-tertiary uppercase tracking-wider font-medium">
+              Recent Activity
+            </span>
+            <Link href="/journal" className="flex items-center gap-1 text-xs text-accent active:opacity-70">
+              See all <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5 snap-x snap-mandatory scrollbar-hide">
+            {recentLogs.slice(0, 5).map((log) => (
+              <Link
+                href="/journal"
+                key={log.id}
+                className="snap-start shrink-0 w-[200px] bg-bg-secondary border border-surface-border rounded-xl p-3.5 active:scale-[0.98] transition-transform"
+              >
+                <span className="text-sm mb-1.5 block">
+                  {log.impactType === 'shipped' ? '\u{1F680}' : log.impactType === 'fixed' ? '\u{1F527}' : log.impactType === 'led' ? '\u{1F451}' : '\u{1F4CC}'}
+                </span>
+                <p className="text-sm text-text-primary line-clamp-2 leading-snug">{log.content}</p>
+                <div className="flex items-center gap-1.5 mt-2">
+                  {log.aiRewrite && <Sparkles size={10} className="text-accent" />}
+                  <span className="text-[10px] text-text-tertiary">{relativeTime(log.createdAt)}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* === HERO CARD === */}
       {!hasLoggedToday && (
         /* State A: No entry today */
@@ -240,32 +281,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent entries */}
-      {recentLogs && recentLogs.length > 0 && (
-        <div>
-          <span className="text-xs text-text-tertiary uppercase tracking-wider">Recent</span>
-          <div className="mt-3 space-y-1">
-            {recentLogs.slice(0, 3).map((log) => (
-              <Link
-                href="/journal"
-                key={log.id}
-                className="flex items-center gap-3 py-2.5 -mx-1 px-1 rounded-lg active:bg-surface-highlight transition-colors"
-              >
-                <span className="text-sm shrink-0">
-                  {log.impactType === 'shipped' ? '\u{1F680}' : log.impactType === 'fixed' ? '\u{1F527}' : log.impactType === 'led' ? '\u{1F451}' : '\u{1F4CC}'}
-                </span>
-                <span className="text-sm text-text-primary truncate flex-1">
-                  {log.content}
-                </span>
-                {log.aiRewrite && <Sparkles size={10} className="text-accent shrink-0" />}
-                <span className="text-[10px] text-text-tertiary shrink-0">
-                  {relativeTime(log.createdAt)}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Recent entries moved to horizontal carousel above */}
     </div>
   );
 }
