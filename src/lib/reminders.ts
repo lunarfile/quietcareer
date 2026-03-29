@@ -57,7 +57,11 @@ export function shouldShowStretchReminder(): boolean {
   if (settings.stretchInterval === 0) return false;
 
   const lastShown = localStorage.getItem(LAST_STRETCH_KEY);
-  if (!lastShown) return true;
+  // Don't show on first launch — wait until user has at least used the app
+  if (!lastShown) {
+    markStretchReminderShown(); // Set baseline timestamp
+    return false;
+  }
 
   const elapsed = Date.now() - parseInt(lastShown);
   return elapsed >= settings.stretchInterval * 60 * 1000;
@@ -95,6 +99,7 @@ export function shouldShowLogReminder(): boolean {
 
   const today = new Date().toISOString().split('T')[0];
   const lastShown = localStorage.getItem(LAST_LOG_KEY);
+  if (!lastShown) { markLogReminderShown(); return false; } // Don't show on first launch
   return lastShown !== today;
 }
 
@@ -124,6 +129,7 @@ export function shouldShowEnergyReminder(): boolean {
 
   const today = new Date().toISOString().split('T')[0];
   const lastShown = localStorage.getItem('qc_last_energy_reminder');
+  if (!lastShown) { markEnergyReminderShown(); return false; } // Don't show on first launch
   return lastShown !== today;
 }
 

@@ -70,7 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <GlobalSearch />
       <div className="flex min-h-screen">
         <Sidebar />
-        <main id="main-content" className="flex-1 pb-28 md:pb-0 overflow-x-hidden">
+        <main id="main-content" className="flex-1 pb-36 md:pb-0 overflow-x-hidden">
           <div className="mx-auto max-w-[960px] px-4 pt-12 pb-6 md:px-8 md:pt-8 md:pb-8">
             <ErrorBoundary>
               <PageTransition>{children}</PageTransition>
