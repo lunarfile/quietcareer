@@ -11,7 +11,7 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://yzuunyoftiypwebihdux.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'; // Replace with actual anon key from Supabase dashboard
+const SUPABASE_ANON_KEY = 'sb_publishable_IFKY0Sv6E5iORXe2VMVU2g_zvlqZ2my';
 
 let supabase: SupabaseClient | null = null;
 
