@@ -1,36 +1,41 @@
 /**
  * Field-level encryption for sensitive data before storing in IndexedDB.
  * Only encrypts when passphrase protection is enabled.
- * Sensitive fields: content, aiRewrite, notes, financial amounts, titles.
+ *
+ * SECURITY FIXES:
+ * - NO silent plaintext fallback — errors propagate
+ * - Uses enc: prefix for deterministic encrypted field detection
+ * - Graceful handling of mixed encrypted/plaintext data
  */
 
 import { encrypt, decrypt, isEncryptionReady } from './crypto';
 
+const ENC_PREFIX = 'enc:';
+
 /**
- * Encrypt a string field if encryption is active.
+ * Encrypt a string field. Throws on failure (no silent plaintext fallback).
  */
 export async function encryptField(value: string | null): Promise<string | null> {
   if (!value || !isEncryptionReady()) return value;
-  try {
-    return await encrypt(value);
-  } catch {
-    return value; // Fallback: store unencrypted if encryption fails
-  }
+  return await encrypt(value); // encrypt() now adds enc: prefix automatically
 }
 
 /**
- * Decrypt a string field if it looks encrypted (base64).
+ * Decrypt a string field. Only attempts decryption on enc: prefixed values.
  */
 export async function decryptField(value: string | null): Promise<string | null> {
   if (!value || !isEncryptionReady()) return value;
+
+  // Only decrypt values that are actually encrypted (have enc: prefix)
+  if (!value.startsWith(ENC_PREFIX)) return value; // Plaintext — return as-is
+
   try {
-    // Check if the value looks like it might be encrypted (base64)
-    if (/^[A-Za-z0-9+/]+=*$/.test(value) && value.length > 20) {
-      return await decrypt(value);
-    }
-    return value; // Not encrypted, return as-is
+    return await decrypt(value);
   } catch {
-    return value; // Decryption failed, return raw (might be unencrypted)
+    // Decryption failed — might be wrong key or corrupted data
+    // Return the raw value rather than crash the UI
+    console.error('Failed to decrypt field. Data may be corrupted or key is wrong.');
+    return '[Encrypted — wrong passphrase?]';
   }
 }
 

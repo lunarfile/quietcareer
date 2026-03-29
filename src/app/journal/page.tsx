@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { copy } from '@/lib/copy';
+import { scheduleBackup } from '@/lib/auto-backup';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { encryptWorkLog, decryptWorkLogs } from '@/lib/field-encryption';
 import { Highlight } from '@/components/ui/highlight';
@@ -101,6 +102,7 @@ export default function JournalPage() {
     setMood(null);
     setSaving(false);
     toast(copy.entryToast(), 'success');
+    scheduleBackup();
   };
 
   const handleAIRewrite = async (logId: string, logContent: string) => {

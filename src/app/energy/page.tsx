@@ -18,6 +18,7 @@ import dynamic from 'next/dynamic';
 const EnergyChart = dynamic(() => import('@/components/charts/energy-chart').then((m) => m.EnergyChart), { ssr: false });
 import { suggestEnergyMode, getModeCopy } from '@/lib/scoring';
 import { copy } from '@/lib/copy';
+import { scheduleBackup } from '@/lib/auto-backup';
 import { MicroRecoveryCard } from '@/components/dashboard/micro-recovery';
 import { detectEnergyPatterns } from '@/lib/wellness-intelligence';
 import { encryptCheckin } from '@/lib/field-encryption';

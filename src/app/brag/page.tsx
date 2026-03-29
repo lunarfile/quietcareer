@@ -1,4 +1,5 @@
 'use client';
+import { scheduleBackup } from '@/lib/auto-backup';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { encryptBragDoc } from '@/lib/field-encryption';

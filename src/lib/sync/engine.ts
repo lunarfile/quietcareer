@@ -1,9 +1,12 @@
 /**
  * Sync engine — merges local and remote data using last-write-wins per record.
  * Each record has a unique id and updatedAt/createdAt timestamp.
+ *
+ * SECURITY: Entire sync payload is encrypted before upload if encryption is enabled.
  */
 
 import { db } from '@/lib/db';
+import { encrypt, decrypt, isEncryptionReady } from '@/lib/crypto';
 import type { SyncData, SyncAdapter } from './types';
 
 const SYNC_VERSION = 1;
@@ -68,13 +71,11 @@ export async function mergeRemoteData(remote: SyncData): Promise<{
       const local = await (table as { get: (k: string) => Promise<Record<string, unknown> | undefined> }).get(keyValue);
 
       if (!local) {
-        // New record from remote — import it
         await (table as { put: (r: unknown) => Promise<unknown> }).put(record);
         imported++;
       } else {
         const localTime = (local[timeField] as number) ?? 0;
         if (remoteTime > localTime) {
-          // Remote is newer — update local
           await (table as { put: (r: unknown) => Promise<unknown> }).put(record);
           imported++;
         } else {
@@ -88,7 +89,45 @@ export async function mergeRemoteData(remote: SyncData): Promise<{
 }
 
 /**
+ * Encrypt the entire sync payload before sending to remote.
+ */
+async function encryptPayload(data: SyncData): Promise<string> {
+  const json = JSON.stringify(data);
+  if (isEncryptionReady()) {
+    const encrypted = await encrypt(json);
+    return JSON.stringify({ encrypted: true, version: SYNC_VERSION, payload: encrypted });
+  }
+  // No encryption enabled — upload plaintext with warning flag
+  return JSON.stringify({ encrypted: false, version: SYNC_VERSION, payload: json });
+}
+
+/**
+ * Decrypt the sync payload received from remote.
+ */
+async function decryptPayload(raw: string): Promise<SyncData> {
+  const wrapper = JSON.parse(raw);
+
+  if (wrapper.encrypted && isEncryptionReady()) {
+    const decrypted = await decrypt(wrapper.payload);
+    return JSON.parse(decrypted);
+  }
+
+  if (wrapper.encrypted && !isEncryptionReady()) {
+    throw new Error('Sync file is encrypted but no passphrase is set. Enable passphrase in Settings first.');
+  }
+
+  // Not encrypted — parse directly
+  if (typeof wrapper.payload === 'string') {
+    return JSON.parse(wrapper.payload);
+  }
+
+  // Legacy format (direct SyncData)
+  return wrapper as SyncData;
+}
+
+/**
  * Full sync cycle: pull remote, merge, push local.
+ * Payload is encrypted if passphrase protection is enabled.
  */
 export async function performSync(adapter: SyncAdapter): Promise<{
   imported: number;

@@ -16,6 +16,8 @@ import { QuickEntry } from '@/components/ui/quick-entry';
 import { GlobalSearch } from '@/components/ui/global-search';
 import { SessionLock } from '@/components/ui/session-lock';
 import { ReminderBanner } from '@/components/ui/reminder-banner';
+import { DataRecoveryGuard } from '@/components/ui/data-recovery';
+import { performAutoBackup } from '@/lib/auto-backup';
 
 const ONBOARDING_ROUTES = ['/', '/onboarding'];
 
@@ -59,6 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <ToastProvider>
     <ConfirmProvider>
     <SessionLock>
+    <DataRecoveryGuard>
       {showQuote && <DailyQuote onComplete={handleQuoteComplete} />}
       <OfflineIndicator />
       <ReminderBanner />
@@ -77,6 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Center compose FAB is now part of MobileNav */}
         <MobileNav />
       </div>
+    </DataRecoveryGuard>
     </SessionLock>
     </ConfirmProvider>
     </ToastProvider>
