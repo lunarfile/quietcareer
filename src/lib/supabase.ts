@@ -28,6 +28,31 @@ export function getSupabase() {
 // === Auth ===
 
 export async function signInWithGoogle(): Promise<User | null> {
+  // Detect if running in Capacitor (WebView) vs browser
+  const isCapacitor = typeof window !== 'undefined' && !!(window as unknown as { Capacitor?: unknown }).Capacitor;
+
+  if (isCapacitor) {
+    // For Capacitor: use the Supabase URL as redirect, then extract the token
+    // The callback URL will include the access token as a hash fragment
+    const { data, error } = await getSupabase().auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${SUPABASE_URL}/auth/v1/callback`,
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error || !data?.url) {
+      console.error('Google sign-in failed:', error);
+      return null;
+    }
+
+    // Open the OAuth URL in the system browser
+    window.open(data.url, '_blank');
+    return null;
+  }
+
+  // For web: standard OAuth redirect
   const { data, error } = await getSupabase().auth.signInWithOAuth({
     provider: 'google',
     options: {
@@ -40,7 +65,27 @@ export async function signInWithGoogle(): Promise<User | null> {
     return null;
   }
 
-  return null; // OAuth redirects — user comes back after
+  return null;
+}
+
+/**
+ * Handle OAuth callback — extract session from URL hash.
+ * Call this on app startup to catch returning OAuth redirects.
+ */
+export async function handleAuthCallback(): Promise<User | null> {
+  if (typeof window === 'undefined') return null;
+
+  const hash = window.location.hash;
+  if (!hash || !hash.includes('access_token')) return null;
+
+  // Supabase client auto-detects the hash and sets the session
+  const { data, error } = await getSupabase().auth.getSession();
+  if (error || !data?.session) return null;
+
+  // Clean the URL hash
+  window.history.replaceState(null, '', window.location.pathname);
+
+  return data.session.user;
 }
 
 export async function getCurrentUser(): Promise<User | null> {

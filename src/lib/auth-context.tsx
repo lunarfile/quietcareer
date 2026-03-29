@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { getCurrentUser, onAuthStateChange, syncToCloud } from './supabase';
+import { getCurrentUser, onAuthStateChange, syncToCloud, handleAuthCallback } from './supabase';
 import type { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -25,6 +25,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Handle OAuth callback (returning from Google sign-in)
+    handleAuthCallback().then((callbackUser) => {
+      if (callbackUser) {
+        setUser(callbackUser);
+        setLoading(false);
+        syncToCloud().catch(() => {});
+        return;
+      }
+    });
+
     // Check current session
     getCurrentUser().then((u) => {
       setUser(u);
