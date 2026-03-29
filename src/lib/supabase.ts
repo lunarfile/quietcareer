@@ -56,7 +56,7 @@ export async function signInWithGoogle(): Promise<User | null> {
   const { data, error } = await getSupabase().auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: 'https://quietcareer.vercel.app/dashboard',
+      redirectTo: 'https://quietcareer.fortiblox.app/dashboard',
     },
   });
 
@@ -98,7 +98,7 @@ export async function signUpWithEmail(email: string, password: string): Promise<
     email,
     password,
     options: {
-      emailRedirectTo: 'https://quietcareer.vercel.app/dashboard',
+      emailRedirectTo: 'https://quietcareer.fortiblox.app/dashboard',
     },
   });
   if (error) return { user: null, error: error.message };
@@ -116,7 +116,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
 
 export async function resetPassword(email: string): Promise<{ error: string | null }> {
   const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://quietcareer.vercel.app/reset-password',
+    redirectTo: 'https://quietcareer.fortiblox.app/reset-password',
   });
   return { error: error?.message ?? null };
 }
