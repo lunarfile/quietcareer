@@ -93,6 +93,27 @@ export async function getCurrentUser(): Promise<User | null> {
   return data?.user ?? null;
 }
 
+export async function signUpWithEmail(email: string, password: string): Promise<{ user: User | null; error: string | null }> {
+  const { data, error } = await getSupabase().auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: 'https://quietcareer.vercel.app/dashboard',
+    },
+  });
+  if (error) return { user: null, error: error.message };
+  return { user: data.user, error: null };
+}
+
+export async function signInWithEmail(email: string, password: string): Promise<{ user: User | null; error: string | null }> {
+  const { data, error } = await getSupabase().auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (error) return { user: null, error: error.message };
+  return { user: data.user, error: null };
+}
+
 export async function signOut(): Promise<void> {
   await getSupabase().auth.signOut();
 }
