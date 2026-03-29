@@ -12,6 +12,7 @@ import { createClient, type User } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://yzuunyoftiypwebihdux.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_IFKY0Sv6E5iORXe2VMVU2g_zvlqZ2my';
+const AUTH_PROXY = 'https://quietcareer.fortiblox.app/auth/v1';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let supabase: any = null;
@@ -52,19 +53,10 @@ export async function signInWithGoogle(): Promise<User | null> {
     return null;
   }
 
-  // For web: redirect to the deployed app
-  const { data, error } = await getSupabase().auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: 'https://quietcareer.fortiblox.app/dashboard',
-    },
-  });
-
-  if (error) {
-    console.error('Google sign-in failed:', error);
-    return null;
-  }
-
+  // For web: use proxy URL so Google shows "continue to quietcareer.fortiblox.app"
+  const redirectTo = 'https://quietcareer.fortiblox.app/dashboard';
+  const authUrl = `${AUTH_PROXY}/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
+  window.location.href = authUrl;
   return null;
 }
 
