@@ -3,6 +3,11 @@ import { usePageTitle } from '@/hooks/use-page-title';
 
 import { useState, useEffect } from 'react';
 import { getUserRole, getSetting } from '@/lib/settings';
+import { useAuth } from '@/lib/auth-context';
+import { SignInButton } from '@/components/auth/sign-in-button';
+import { syncToCloud, signOut } from '@/lib/supabase';
+import { useToast } from '@/components/ui/toast';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import {
   BarChart3,
@@ -14,6 +19,7 @@ import {
   ChevronRight,
   User,
   Calendar,
+  Cloud,
 } from 'lucide-react';
 
 const featureCards = [
@@ -53,6 +59,9 @@ export default function MorePage() {
         </div>
       </div>
 
+      {/* Cloud Backup */}
+      <CloudBackupCard />
+
       {/* Tools grid */}
       <div>
         <span className="text-xs text-text-tertiary uppercase tracking-wider font-medium">Tools</span>
@@ -90,6 +99,64 @@ export default function MorePage() {
       <p className="text-center text-[10px] text-text-tertiary pt-4 pb-8">
         QuietCareer v1.0.0
       </p>
+    </div>
+  );
+}
+
+function CloudBackupCard() {
+  const { user, isSignedIn } = useAuth();
+  const { toast } = useToast();
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    const result = await syncToCloud();
+    setSyncing(false);
+    if (result.success) {
+      toast('Data backed up to cloud.', 'success');
+    } else {
+      toast(result.error ?? 'Sync failed.', 'error');
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast('Signed out. Cloud backup disabled.', 'success');
+  };
+
+  return (
+    <div className="bg-bg-secondary border border-surface-border rounded-xl p-4">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+          <Cloud size={20} className="text-success" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-text-primary">Cloud Backup</p>
+          <p className="text-[11px] text-text-tertiary">
+            {isSignedIn
+              ? `Signed in as ${user?.email ?? 'Google account'}`
+              : 'Sign in to back up your data'}
+          </p>
+        </div>
+      </div>
+
+      {isSignedIn ? (
+        <div className="flex gap-2">
+          <Button size="sm" variant="secondary" onClick={handleSync} disabled={syncing}>
+            {syncing ? 'Syncing...' : 'Sync Now'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={handleSignOut}>
+            Sign Out
+          </Button>
+        </div>
+      ) : (
+        <div>
+          <p className="text-xs text-text-tertiary mb-3">
+            Your data is encrypted before upload. We can&apos;t read it.
+          </p>
+          <SignInButton className="w-full" />
+        </div>
+      )}
     </div>
   );
 }
