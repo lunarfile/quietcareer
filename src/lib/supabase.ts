@@ -53,10 +53,19 @@ export async function signInWithGoogle(): Promise<User | null> {
     return null;
   }
 
-  // For web: use proxy URL so Google shows "continue to quietcareer.fortiblox.app"
-  const redirectTo = 'https://quietcareer.fortiblox.app/dashboard';
-  const authUrl = `${AUTH_PROXY}/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
-  window.location.href = authUrl;
+  // For web: standard OAuth redirect
+  const { data, error } = await getSupabase().auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: 'https://quietcareer.fortiblox.app/dashboard',
+    },
+  });
+
+  if (error) {
+    console.error('Google sign-in failed:', error);
+    return null;
+  }
+
   return null;
 }
 
