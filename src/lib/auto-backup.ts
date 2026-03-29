@@ -163,8 +163,21 @@ let backupTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function scheduleBackup(): void {
   if (backupTimer) clearTimeout(backupTimer);
-  backupTimer = setTimeout(() => {
-    performAutoBackup();
+  backupTimer = setTimeout(async () => {
+    // Local backup
+    await performAutoBackup();
+
+    // Cloud sync (if signed in)
+    try {
+      const { getCurrentUser, syncToCloud } = await import('./supabase');
+      const user = await getCurrentUser();
+      if (user) {
+        await syncToCloud();
+      }
+    } catch {
+      // Cloud sync failed silently — local backup is the safety net
+    }
+
     backupTimer = null;
   }, 10000); // 10 second debounce after last write
 }
