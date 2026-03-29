@@ -15,7 +15,7 @@ import { getAIApiKey, getAIProvider, getAIModel } from '@/lib/settings';
 import { encryptWorkLog } from '@/lib/field-encryption';
 import { ArrowDown, Sparkles, ArrowRight, Check } from 'lucide-react';
 
-type Step = 'profile' | 'magic';
+type Step = 'profile' | 'ai-setup' | 'magic';
 
 const ROLE_SUGGESTIONS = [
   'Software Engineer',
@@ -76,7 +76,7 @@ export default function OnboardingPage() {
     await setSetting('user_role', role);
     if (tenure) await setSetting('user_tenure', tenure);
     if (concerns.length > 0) await setSetting('user_concerns', JSON.stringify(concerns));
-    transitionTo('magic');
+    transitionTo('ai-setup');
   };
 
   const handleTransform = async () => {
@@ -154,7 +154,7 @@ export default function OnboardingPage() {
     router.push('/dashboard');
   };
 
-  const stepIndex = step === 'profile' ? 0 : 1;
+  const stepIndex = step === 'profile' ? 0 : step === 'ai-setup' ? 1 : 2;
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -164,7 +164,7 @@ export default function OnboardingPage() {
 
       <div className="relative z-10 flex flex-col items-center min-h-screen px-6 py-12">
         {/* Progress */}
-        <StepIndicator steps={2} current={stepIndex} className="mb-12" />
+        <StepIndicator steps={3} current={stepIndex} className="mb-12" />
 
         {/* Content with transition */}
         <div
@@ -185,6 +185,10 @@ export default function OnboardingPage() {
               toggleConcern={toggleConcern}
               onSubmit={handleProfileSubmit}
             />
+          )}
+
+          {step === 'ai-setup' && (
+            <AISetupStep onComplete={() => transitionTo('magic')} onSkip={() => transitionTo('magic')} />
           )}
 
           {step === 'magic' && (
@@ -474,9 +478,150 @@ function MagicStep({
   );
 }
 
+function AISetupStep({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) {
+  const [provider, setProvider] = useState('openrouter');
+  const [apiKey, setApiKey] = useState('');
+  const [testing, setTesting] = useState(false);
+  const [verified, setVerified] = useState(false);
+
+  const providers = [
+    { id: 'gemini', name: 'Google Gemini', note: 'Free tier available', prefix: 'AI' },
+    { id: 'groq', name: 'Groq', note: 'Free tier, ultra fast', prefix: 'gsk_' },
+    { id: 'openrouter', name: 'OpenRouter', note: '100+ models, one key', prefix: 'sk-or-' },
+    { id: 'claude', name: 'Anthropic Claude', note: 'Best quality', prefix: 'sk-ant-' },
+    { id: 'openai', name: 'OpenAI', note: 'Most popular', prefix: 'sk-' },
+  ];
+
+  const handleTest = async () => {
+    if (!apiKey.trim()) return;
+    setTesting(true);
+    await setSetting('ai_provider', provider);
+    await setSetting('ai_api_key', apiKey, true);
+
+    const { AI_PROVIDERS, streamAIResponse } = await import('@/lib/ai/providers');
+    const config = AI_PROVIDERS[provider as keyof typeof AI_PROVIDERS];
+
+    await streamAIResponse(
+      provider as any,
+      apiKey,
+      config.defaultModel,
+      [{ role: 'system', content: 'Say "ok".' }, { role: 'user', content: 'Test.' }],
+      {
+        onChunk: () => {},
+        onDone: () => { setTesting(false); setVerified(true); },
+        onError: () => { setTesting(false); },
+      },
+      10
+    );
+  };
+
+  const handleContinue = async () => {
+    if (apiKey.trim()) {
+      await setSetting('ai_provider', provider);
+      await setSetting('ai_api_key', apiKey, true);
+      const { AI_PROVIDERS } = await import('@/lib/ai/providers');
+      const config = AI_PROVIDERS[provider as keyof typeof AI_PROVIDERS];
+      await setSetting('ai_model', config.defaultModel);
+    }
+    onComplete();
+  };
+
+  return (
+    <div className="animate-fade-up">
+      <h2 className="text-2xl font-semibold text-text-primary mb-2 tracking-tight">
+        Power up with AI
+      </h2>
+      <p className="text-sm text-text-secondary mb-8 leading-relaxed">
+        AI turns your messy notes into polished career proof. Pick a provider and add your key. Gemini and Groq have free tiers.
+      </p>
+
+      {/* Provider selector */}
+      <div className="space-y-2 mb-6">
+        {providers.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setProvider(p.id)}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-all ${
+              provider === p.id
+                ? 'border-accent bg-accent-muted'
+                : 'border-surface-border active:bg-surface-highlight'
+            }`}
+          >
+            <div>
+              <span className="text-sm font-medium text-text-primary">{p.name}</span>
+              <span className="text-xs text-text-tertiary ml-2">{p.note}</span>
+            </div>
+            {provider === p.id && <div className="w-2 h-2 rounded-full bg-accent" />}
+          </button>
+        ))}
+      </div>
+
+      {/* API key input */}
+      <div className="mb-6">
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(e) => { setApiKey(e.target.value); setVerified(false); }}
+          placeholder={`Paste your ${providers.find((p) => p.id === provider)?.name} API key`}
+          className="w-full h-12 px-4 rounded-xl border border-surface-border bg-bg-input text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+        />
+        <p className="text-xs text-text-tertiary mt-2">
+          Encrypted and stored locally. We never see your key.
+        </p>
+      </div>
+
+      {/* Test + Continue */}
+      <div className="space-y-3">
+        {apiKey.trim() && !verified && (
+          <Button variant="secondary" className="w-full" onClick={handleTest} disabled={testing}>
+            {testing ? 'Testing...' : 'Test Connection'}
+          </Button>
+        )}
+        {verified && (
+          <p className="text-sm text-success-text text-center">{'\u2713'} Connected! AI features are ready.</p>
+        )}
+        <Button size="lg" className="w-full" onClick={handleContinue}>
+          {apiKey.trim() ? 'Continue' : 'Continue Without AI'}
+        </Button>
+        {!apiKey.trim() && (
+          <p className="text-xs text-text-tertiary text-center">
+            You can always add an AI key later in Settings.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // === Helpers ===
 
 function generateDemoRewrite(entry: string): string {
-  const cleaned = entry.trim().toLowerCase().replace(/^i /i, '').replace(/\.$/, '');
-  return `Demonstrated leadership and technical initiative by ${cleaned}, resulting in improved team efficiency and delivering measurable value to stakeholders.`;
+  const lower = entry.toLowerCase();
+
+  // Pattern match for common work activities and generate specific rewrites
+  if (lower.includes('fix') || lower.includes('bug') || lower.includes('debug')) {
+    return `Identified and resolved a critical issue, reducing potential downtime and improving system reliability for end users.`;
+  }
+  if (lower.includes('meet') || lower.includes('standup') || lower.includes('led')) {
+    return `Facilitated cross-functional alignment, ensuring team priorities were clear and blockers were addressed — directly contributing to on-time delivery.`;
+  }
+  if (lower.includes('ship') || lower.includes('launch') || lower.includes('deploy') || lower.includes('release')) {
+    return `Successfully delivered a key feature to production, expanding product capability and driving measurable user value.`;
+  }
+  if (lower.includes('help') || lower.includes('mentor') || lower.includes('pair') || lower.includes('teach')) {
+    return `Invested in team growth through hands-on mentorship, accelerating a colleague\u2019s ramp-up and strengthening team knowledge sharing.`;
+  }
+  if (lower.includes('present') || lower.includes('demo') || lower.includes('review')) {
+    return `Presented work to stakeholders, translating technical progress into business impact and securing alignment on next steps.`;
+  }
+  if (lower.includes('doc') || lower.includes('wrote') || lower.includes('spec') || lower.includes('design')) {
+    return `Created documentation that reduced onboarding friction and established a reference point for future team decisions.`;
+  }
+  if (lower.includes('test') || lower.includes('qa') || lower.includes('quality')) {
+    return `Strengthened quality assurance coverage, catching issues before they reached users and improving overall product reliability.`;
+  }
+
+  // Generic but still better than corporate filler
+  const cleaned = entry.trim().replace(/^i /i, '').replace(/\.$/, '');
+  return `Took ownership of ${cleaned.toLowerCase()}, demonstrating initiative and contributing to the team\u2019s forward momentum.`;
 }
