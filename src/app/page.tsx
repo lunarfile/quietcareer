@@ -4,10 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isOnboardingComplete } from '@/lib/settings';
 import { useAuth } from '@/lib/auth-context';
-import { handleAuthCallback, signInWithEmail, signUpWithEmail, resetPassword, getCurrentUser, restoreFromCloud } from '@/lib/supabase';
+import { handleAuthCallback, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword, getCurrentUser, restoreFromCloud } from '@/lib/supabase';
 import { db } from '@/lib/db';
 import { AnimatedShield } from '@/components/brand/animated-shield';
-import { GoogleSignInButton } from '@/components/auth/google-button';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 

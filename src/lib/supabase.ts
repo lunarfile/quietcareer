@@ -29,42 +29,22 @@ export function getSupabase() {
 // === Auth ===
 
 /**
- * Google Sign-In using Identity Services (signInWithIdToken).
- * Google shows YOUR domain, not Supabase's. No redirects needed.
- * Returns a promise that resolves when sign-in completes.
+ * Google Sign-In — uses Supabase OAuth redirect flow.
+ * Redirects to Google → Supabase callback → back to app.
  */
-export function signInWithGoogle(): Promise<User | null> {
-  return new Promise((resolve) => {
-    const google = (window as unknown as { google?: { accounts: { id: { initialize: (config: unknown) => void; prompt: () => void } } } }).google;
-
-    if (!google) {
-      console.error('Google Identity Services not loaded');
-      resolve(null);
-      return;
-    }
-
-    google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: async (response: { credential: string }) => {
-        // Exchange Google token with Supabase
-        const { data, error } = await getSupabase().auth.signInWithIdToken({
-          provider: 'google',
-          token: response.credential,
-        });
-
-        if (error) {
-          console.error('Supabase auth error:', error);
-          resolve(null);
-          return;
-        }
-
-        resolve(data?.user ?? null);
-      },
-    });
-
-    // Show the Google One Tap prompt
-    google.accounts.id.prompt();
+export async function signInWithGoogle(): Promise<User | null> {
+  const { error } = await getSupabase().auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: 'https://quietcareer.app/dashboard',
+    },
   });
+
+  if (error) {
+    console.error('Google sign-in failed:', error);
+  }
+
+  return null; // Redirect happens
 }
 
 /**
