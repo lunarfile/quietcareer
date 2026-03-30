@@ -1,7 +1,8 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { getCurrentUser, onAuthStateChange, syncToCloud, handleAuthCallback } from './supabase';
+import { getCurrentUser, onAuthStateChange, syncToCloud, restoreFromCloud, handleAuthCallback } from './supabase';
+import { db } from './db';
 import type { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -36,24 +37,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Check current session
-    getCurrentUser().then((u) => {
+    getCurrentUser().then(async (u) => {
       setUser(u);
       setLoading(false);
 
-      // Auto-sync on sign-in
       if (u) {
-        syncToCloud().catch(() => {});
+        // If local DB is empty but user is signed in, restore from cloud
+        const localCount = await db.workLogs.count();
+        if (localCount === 0) {
+          await restoreFromCloud();
+        } else {
+          await syncToCloud().catch(() => {});
+        }
       }
     });
 
     // Listen for auth changes
-    const { data } = onAuthStateChange((u) => {
+    const { data } = onAuthStateChange(async (u) => {
       setUser(u);
       setLoading(false);
 
-      // Auto-sync when user signs in
       if (u) {
-        syncToCloud().catch(() => {});
+        // On sign-in: restore from cloud if local is empty, else sync
+        const localCount = await db.workLogs.count();
+        if (localCount === 0) {
+          await restoreFromCloud();
+        } else {
+          await syncToCloud().catch(() => {});
+        }
       }
     });
 
