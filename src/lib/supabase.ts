@@ -33,18 +33,12 @@ export function getSupabase() {
  * Redirects to Google → Supabase callback → back to app.
  */
 export async function signInWithGoogle(): Promise<User | null> {
-  const { error } = await getSupabase().auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: 'https://quietcareer.app/dashboard',
-    },
-  });
-
-  if (error) {
-    console.error('Google sign-in failed:', error);
-  }
-
-  return null; // Redirect happens
+  // Use proxy URL so Google consent screen shows "continue to quietcareer.app"
+  // instead of the raw Supabase project URL
+  const redirectTo = 'https://quietcareer.app/dashboard';
+  const authUrl = `https://quietcareer.app/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
+  window.location.href = authUrl;
+  return null;
 }
 
 /**

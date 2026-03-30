@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isOnboardingComplete } from '@/lib/settings';
 import { useAuth } from '@/lib/auth-context';
-import { handleAuthCallback, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword, getCurrentUser, restoreFromCloud } from '@/lib/supabase';
+import { handleAuthCallback, signInWithEmail, signUpWithEmail, resetPassword, getCurrentUser, restoreFromCloud } from '@/lib/supabase';
 import { db } from '@/lib/db';
 import { AnimatedShield } from '@/components/brand/animated-shield';
 import { Button } from '@/components/ui/button';
+import { GoogleSignInButton } from '@/components/auth/google-button';
 import { useToast } from '@/components/ui/toast';
 
 type AuthMode = 'welcome' | 'signin' | 'signup';
@@ -138,7 +139,7 @@ export default function WelcomePage() {
           {mode === 'welcome' && (
             <>
               <GoogleSignInButton
-                onSuccess={() => router.replace('/onboarding')}
+                onSuccess={() => router.replace('/dashboard')}
                 onError={(err) => toast(err, 'error')}
               />
               <div className="flex items-center gap-3"><div className="flex-1 h-px bg-surface-border" /><span className="text-xs text-text-tertiary">or</span><div className="flex-1 h-px bg-surface-border" /></div>
@@ -156,7 +157,7 @@ export default function WelcomePage() {
               <Button className="w-full h-12" onClick={handleEmailSubmit} disabled={loading}>{loading ? 'Please wait...' : mode === 'signup' ? 'Create Account' : 'Sign In'}</Button>
               <div className="flex items-center gap-3"><div className="flex-1 h-px bg-surface-border" /><span className="text-xs text-text-tertiary">or</span><div className="flex-1 h-px bg-surface-border" /></div>
               <GoogleSignInButton
-                onSuccess={() => router.replace('/onboarding')}
+                onSuccess={() => router.replace('/dashboard')}
                 onError={(err) => toast(err, 'error')}
                 size="medium"
               />

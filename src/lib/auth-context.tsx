@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (u) {
         // If local DB is empty but user is signed in, restore from cloud
-        const localCount = await db.workLogs.count();
+        const localCount = await db.settings.count();
         if (localCount === 0) {
           await restoreFromCloud();
         } else {
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (u) {
         // On sign-in: restore from cloud if local is empty, else sync
-        const localCount = await db.workLogs.count();
+        const localCount = await db.settings.count();
         if (localCount === 0) {
           await restoreFromCloud();
         } else {
