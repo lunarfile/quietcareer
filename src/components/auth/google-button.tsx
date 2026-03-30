@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
@@ -14,6 +14,8 @@ interface GoogleButtonProps {
   width?: number;
 }
 
+let initialized = false;
+
 export function GoogleSignInButton({
   onSuccess,
   onError,
@@ -22,64 +24,63 @@ export function GoogleSignInButton({
   width = 320,
 }: GoogleButtonProps) {
   const buttonRef = useRef<HTMLDivElement>(null);
+  const callbackRef = useRef({ onSuccess, onError });
+  callbackRef.current = { onSuccess, onError };
 
   useEffect(() => {
-    const google = (window as unknown as {
-      google?: {
-        accounts: {
-          id: {
-            initialize: (config: unknown) => void;
-            renderButton: (el: HTMLElement, config: unknown) => void;
+    function tryInit() {
+      const google = (window as unknown as {
+        google?: {
+          accounts: {
+            id: {
+              initialize: (config: unknown) => void;
+              renderButton: (el: HTMLElement, config: unknown) => void;
+            };
           };
         };
-      };
-    }).google;
+      }).google;
 
-    if (!google || !buttonRef.current) {
-      // Google script not loaded yet — retry after a short delay
-      const timer = setTimeout(() => {
-        const g = (window as unknown as { google?: unknown }).google as typeof google;
-        if (g && buttonRef.current) {
-          initGoogle(g);
-        }
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
+      if (!google || !buttonRef.current) return false;
 
-    initGoogle(google);
+      if (!initialized) {
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: async (response: { credential: string }) => {
+            const { data, error } = await getSupabase().auth.signInWithIdToken({
+              provider: 'google',
+              token: response.credential,
+            });
+            if (error) {
+              callbackRef.current.onError?.(error.message);
+              return;
+            }
+            if (data?.user) {
+              callbackRef.current.onSuccess?.(data.user);
+            }
+          },
+        });
+        initialized = true;
+      }
 
-    function initGoogle(g: NonNullable<typeof google>) {
-      g.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: async (response: { credential: string }) => {
-          const { data, error } = await getSupabase().auth.signInWithIdToken({
-            provider: 'google',
-            token: response.credential,
-          });
-
-          if (error) {
-            onError?.(error.message);
-            return;
-          }
-
-          if (data?.user) {
-            onSuccess?.(data.user);
-          }
-        },
+      google.accounts.id.renderButton(buttonRef.current, {
+        theme,
+        size,
+        width,
+        text: 'continue_with',
+        shape: 'rectangular',
+        logo_alignment: 'left',
       });
 
-      if (buttonRef.current) {
-        g.accounts.id.renderButton(buttonRef.current, {
-          theme,
-          size,
-          width,
-          text: 'continue_with',
-          shape: 'rectangular',
-          logo_alignment: 'left',
-        });
-      }
+      return true;
     }
-  }, [onSuccess, onError, theme, size, width]);
+
+    if (!tryInit()) {
+      const timer = setTimeout(tryInit, 1000);
+      return () => clearTimeout(timer);
+    }
+  // Only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return <div ref={buttonRef} className="flex justify-center" />;
 }

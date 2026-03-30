@@ -4,5 +4,16 @@
       "source": "/auth/v1/:path*",
       "destination": "https://yzuunyoftiypwebihdux.supabase.co/auth/v1/:path*"
     }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin-allow-popups"
+        }
+      ]
+    }
   ]
 }
