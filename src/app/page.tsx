@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isOnboardingComplete } from '@/lib/settings';
 import { useAuth } from '@/lib/auth-context';
-import { handleAuthCallback, signInWithEmail, signUpWithEmail, resetPassword } from '@/lib/supabase';
+import { handleAuthCallback, signInWithEmail, signUpWithEmail, resetPassword, getCurrentUser, restoreFromCloud } from '@/lib/supabase';
+import { db } from '@/lib/db';
 import { AnimatedShield } from '@/components/brand/animated-shield';
 import { GoogleSignInButton } from '@/components/auth/google-button';
 import { Button } from '@/components/ui/button';
@@ -43,37 +44,35 @@ export default function WelcomePage() {
   };
 
   useEffect(() => {
-    // Handle OAuth callback (returning from Google)
-    handleAuthCallback().then((callbackUser) => {
-      if (callbackUser) {
-        // User just signed in — check if onboarding done
-        isOnboardingComplete().then((complete) => {
-          router.replace(complete ? '/dashboard' : '/onboarding');
-        });
+    async function init() {
+      // Handle OAuth callback
+      const callbackUser = await handleAuthCallback();
+      const user = callbackUser || await getCurrentUser();
+
+      if (user) {
+        // Signed in — restore from cloud if local is empty
+        const localCount = await db.workLogs.count();
+        if (localCount === 0) {
+          await restoreFromCloud();
+          await new Promise((r) => setTimeout(r, 500));
+        }
+        // Check onboarding AFTER restore
+        const complete = await isOnboardingComplete();
+        router.replace(complete ? '/dashboard' : '/onboarding');
         return;
       }
 
-      // Check if already signed in + onboarded
-      isOnboardingComplete().then((complete) => {
-        if (complete) {
-          router.replace('/dashboard');
-        } else {
-          setChecking(false);
-          setTimeout(() => setShow(true), 200);
-        }
-      });
-    });
-  }, [router]);
-
-  // If already signed in, redirect
-  useEffect(() => {
-    if (isSignedIn) {
-      isOnboardingComplete().then((complete) => {
-        if (complete) router.replace('/dashboard');
-        else router.replace('/onboarding');
-      });
+      // Not signed in
+      const complete = await isOnboardingComplete();
+      if (complete) {
+        router.replace('/dashboard');
+      } else {
+        setChecking(false);
+        setTimeout(() => setShow(true), 200);
+      }
     }
-  }, [isSignedIn, router]);
+    init();
+  }, [router]);
 
   if (checking) {
     return (
