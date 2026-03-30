@@ -50,13 +50,12 @@ export default function WelcomePage() {
       const user = callbackUser || await getCurrentUser();
 
       if (user) {
-        // Signed in — restore from cloud if local is empty
-        const localCount = await db.workLogs.count();
-        if (localCount === 0) {
+        // Signed in — always try restore if settings are empty
+        const settingsCount = await db.settings.count();
+        if (settingsCount === 0) {
           await restoreFromCloud();
-          await new Promise((r) => setTimeout(r, 500));
+          await new Promise((r) => setTimeout(r, 1000));
         }
-        // Check onboarding AFTER restore
         const complete = await isOnboardingComplete();
         router.replace(complete ? '/dashboard' : '/onboarding');
         return;
